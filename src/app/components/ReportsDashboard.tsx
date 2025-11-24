@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import type { SetActiveTab } from "@/types/tabs";
-import styles from "./Reports.css";
+import styles from "./Reports1.css";
 
 interface ReportsDashboardProps {
   setActiveTab: SetActiveTab;
