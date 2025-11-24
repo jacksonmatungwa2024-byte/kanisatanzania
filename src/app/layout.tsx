@@ -1,20 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Roboto_Mono } from "next/font/google"; // ✅ Fonts supported
 import "./globals.css";
 
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/react";
-
-// 🟡 PWA Register Component
 import PWARegister from "./components/PWARegister";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const robotoMono = Roboto_Mono({
+  variable: "--font-roboto-mono",
   subsets: ["latin"],
 });
 
@@ -25,29 +23,18 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
       <head>
-        {/* 🔗 Manifest for PWA */}
         <link rel="manifest" href="/manifest.json" />
-
-        {/* 🎨 Theme colors */}
         <meta name="theme-color" content="#FFD700" />
         <meta name="background-color" content="#000000" />
-
-        {/* 🍎 iOS support */}
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${inter.variable} ${robotoMono.variable} antialiased`}>
         {children}
-
-        {/* 🔥 Registers Service Worker for PWA */}
         <PWARegister />
-
-        {/* Vercel Tools */}
         <SpeedInsights />
         <Analytics />
       </body>
