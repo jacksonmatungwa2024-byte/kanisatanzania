@@ -1,10 +1,10 @@
 {
-  "name": "Lumina app",
+  "name": "lumina-app",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",   // fast local dev
-    "build": "next build",           // stable production build for Vercel
+    "build": "next build",           // stable production build
     "start": "next start",
     "lint": "eslint"
   },
