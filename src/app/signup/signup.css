@@ -1,65 +1,33 @@
-/* 🌈 FULL WRAPPER WITH ANIMATED GRADIENT */
+/* WRAPPER */
 .signup-wrapper {
   min-height: 100vh;
-  background: linear-gradient(-45deg, #FF7F32, #1E3A8A, #0284C7, #F4F4F4);
-  background-size: 400% 400%;
-  animation: gradientBG 12s ease infinite;
+  background-color: var(--bg-color);
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   align-items: center;
   padding: 30px 20px;
-  position: relative;
-  overflow: hidden;
   transition: background-color 0.5s ease;
-}
-
-/* Animated floating circles */
-.signup-wrapper::before,
-.signup-wrapper::after {
-  content: "";
-  position: absolute;
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.15);
-  animation: float 8s ease-in-out infinite;
-}
-
-.signup-wrapper::before {
-  top: 10%;
-  left: 10%;
-}
-.signup-wrapper::after {
-  bottom: 10%;
-  right: 10%;
-  animation-delay: 3s;
 }
 
 /* TITLE */
 .signup-wrapper h2 {
   font-size: 28px;
-  color: #1E3A8A;
+  color: var(--primary-color);
   font-weight: 700;
   text-align: center;
   margin-bottom: 20px;
-  animation: pulseText 3s infinite;
-  background: rgba(255, 255, 255, 0.8);
-  padding: 10px 20px;
-  border-radius: 10px;
-  backdrop-filter: blur(6px);
 }
 
 /* FORM CONTAINER */
 form {
   width: 100%;
   max-width: 420px;
-  background: rgba(255, 255, 255, 0.95);
+  background-color: var(--form-bg);
   padding: 25px;
   border-radius: 14px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
-  animation: fadeInUp 0.8s ease;
-  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* LABELS */
@@ -67,7 +35,7 @@ label {
   display: block;
   margin-top: 14px;
   font-weight: 600;
-  color: #1E3A8A;
+  color: var(--primary-color);
 }
 
 /* INPUT FIELDS */
@@ -77,20 +45,19 @@ select {
   padding: 12px;
   margin-top: 6px;
   border-radius: 8px;
-  border: 1px solid #bbb;
-  background: #f7f7f7;
+  border: 1px solid var(--border-color);
+  background: var(--input-bg);
   outline: none;
   font-size: 15px;
-  color: #222;
+  color: var(--text-color);
   transition: all 0.3s ease;
 }
 
 input:focus,
 select:focus {
-  background: #fff;
-  border: 1px solid #FF7F32;
-  transform: scale(1.02);
-  box-shadow: 0 0 8px rgba(255, 127, 50, 0.4);
+  background: var(--focus-bg);
+  border: 1px solid var(--accent-color);
+  box-shadow: 0 0 6px var(--accent-shadow);
 }
 
 /* PASSWORD FIELD WITH TOGGLE BUTTON */
@@ -112,7 +79,7 @@ select:focus {
   background: none;
   cursor: pointer;
   font-size: 18px;
-  color: #1E3A8A;
+  color: var(--primary-color);
   transition: transform 0.3s ease;
 }
 
@@ -125,8 +92,8 @@ button[type="submit"] {
   width: 100%;
   padding: 12px;
   margin-top: 20px;
-  background: linear-gradient(90deg, #0284C7, #FF7F32);
-  color: white;
+  background: var(--button-bg);
+  color: var(--button-text);
   border: none;
   border-radius: 8px;
   font-size: 16px;
@@ -136,9 +103,9 @@ button[type="submit"] {
 }
 
 button[type="submit"]:hover {
-  background: linear-gradient(90deg, #1E3A8A, #FF7F32);
+  background: var(--button-hover-bg);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
 /* SIGNUP STATUS MESSAGE */
@@ -147,69 +114,50 @@ button[type="submit"]:hover {
   font-size: 15px;
   font-weight: 600;
   text-align: center;
-  color: #1E3A8A;
-  background: rgba(255, 255, 255, 0.7);
+  color: var(--primary-color);
+  background: var(--message-bg);
   padding: 10px 14px;
   border-radius: 8px;
-  animation: fadeIn 0.4s ease;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /*------------------------*/
-/*      ANIMATIONS        */
+/*      LIGHT MODE        */
 /*------------------------*/
-@keyframes gradientBG {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes pulseText {
-  0%, 100% { color: #1E3A8A; }
-  50% { color: #FF7F32; }
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-18px); }
+:root {
+  --bg-color: #f4f4f4;
+  --form-bg: #fff;
+  --primary-color: #1E3A8A;
+  --border-color: #bbb;
+  --input-bg: #f7f7f7;
+  --focus-bg: #fff;
+  --accent-color: #FF7F32;
+  --accent-shadow: rgba(255,127,50,0.4);
+  --button-bg: linear-gradient(90deg, #0284C7, #FF7F32);
+  --button-hover-bg: linear-gradient(90deg, #1E3A8A, #FF7F32);
+  --button-text: #fff;
+  --text-color: #222;
+  --message-bg: rgba(255,255,255,0.7);
 }
 
 /*------------------------*/
 /*      DARK MODE         */
 /*------------------------*/
 @media (prefers-color-scheme: dark) {
-  .signup-wrapper {
-    background: linear-gradient(-45deg, #1E3A8A, #0284C7, #FF7F32, #111);
-  }
-
-  form {
-    background: rgba(0, 0, 0, 0.85);
-    color: #eee;
-  }
-
-  input,
-  select {
-    background: #333;
-    color: #fff;
-    border: 1px solid #555;
-  }
-
-  .signup-message {
-    background: rgba(0, 0, 0, 0.5);
-    color: #FF7F32;
-  }
-
-  .toggle-btn {
-    color: #FF7F32;
+  :root {
+    --bg-color: #111;
+    --form-bg: #1e1e1e;
+    --primary-color: #FF7F32;
+    --border-color: #555;
+    --input-bg: #333;
+    --focus-bg: #222;
+    --accent-color: #0284C7;
+    --accent-shadow: rgba(2,132,199,0.4);
+    --button-bg: linear-gradient(90deg, #0284C7, #FF7F32);
+    --button-hover-bg: linear-gradient(90deg, #FF7F32, #0284C7);
+    --button-text: #fff;
+    --text-color: #eee;
+    --message-bg: rgba(0,0,0,0.5);
   }
 }
 
@@ -227,5 +175,8 @@ button[type="submit"]:hover {
     font-size: 14px;
     padding: 10px;
   }
-        }
-                                
+
+  .signup-wrapper h2 {
+    font-size: 22px;
+  }
+}
