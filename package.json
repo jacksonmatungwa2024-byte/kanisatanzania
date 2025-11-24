@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build --turbopack --no-lint",
+    "dev": "next dev --turbopack",   // fast local dev
+    "build": "next build",           // stable production build for Vercel
     "start": "next start",
     "lint": "eslint"
   },
@@ -30,8 +30,8 @@
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
     "uuid": "^9.0.1",
-    "speakeasy": "^2.0.0",       
-    "qrcode": "^1.5.4"            
+    "speakeasy": "^2.0.0",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
