@@ -4,12 +4,15 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/(.*)", // routes zote
+        source: "/(.*)",
         headers: [
-          { key: "X-Frame-Options", value: "DENY" }, // zuia iframe embedding
-          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" }, // zuia kutumika kwenye apps zingine
-          { key: "Referrer-Policy", value: "same-origin" }, // ruhusu referrer kutoka domain yako tu
-          { key: "X-Robots-Tag", value: "noindex, nofollow" }, // zuia indexing na search engines
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
         ],
       },
     ];
