@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { generateOtp } from "@/lib/otp"; // hakikisha hii function ipo kwenye lib/otp.ts
+import { generateOtp } from "@/lib/otp"; // ensure this function exists
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
