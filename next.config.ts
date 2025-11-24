@@ -17,6 +17,8 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Ensure Next.js uses the default .next directory
+  distDir: ".next",
 };
 
 export default nextConfig;
