@@ -1,0 +1,120 @@
+/* ===== MAIN CONTAINER ===== */
+.container {
+  max-width: 600px;
+  margin: 20px auto;
+  padding: 18px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 3px 15px rgba(0,0,0,0.08);
+  font-family: Arial, sans-serif;
+  color: #2d174c;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Smooth fade animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== HEADER ===== */
+.header {
+  text-align: center;
+  font-size: 22px;
+  margin-bottom: 20px;
+  font-weight: 700;
+  color: #3d1a67;
+}
+
+/* ===== CLOSE BUTTON ===== */
+.closeBtn {
+  background: #6a1b9a;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  margin-bottom: 20px;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.closeBtn:hover {
+  background: #53167b;
+}
+
+/* ===== PROFILE CARD ===== */
+.card {
+  background: #f4edff;
+  padding: 20px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  box-shadow: inset 0 2px 8px rgba(138, 92, 187, 0.15);
+  flex-wrap: wrap;
+}
+
+/* ===== AVATAR IMAGE ===== */
+.avatar {
+  width: 110px;
+  height: 110px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 3px solid #6a1b9a;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* ===== INFO BLOCK ===== */
+.info {
+  flex: 1;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.info p {
+  margin: 4px 0;
+}
+
+.info strong {
+  color: #4b2a78;
+}
+
+/* ===== LOADING & ERROR ===== */
+.loading {
+  text-align: center;
+  padding: 20px;
+  font-size: 16px;
+  color: #6a1b9a;
+}
+
+.error {
+  text-align: center;
+  padding: 20px;
+  font-size: 16px;
+  font-weight: bold;
+  color: #b10000;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 480px) {
+  .container {
+    margin: 10px;
+    padding: 14px;
+  }
+
+  .card {
+    padding: 16px;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .avatar {
+    width: 95px;
+    height: 95px;
+  }
+
+  .info {
+    font-size: 14px;
+  }
+}
