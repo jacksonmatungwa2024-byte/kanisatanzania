@@ -39,7 +39,7 @@ const SignupPage: React.FC = () => {
     }
 
     try {
-      // Upload profile picture (use username instead of email)
+      // Upload profile picture
       const fileExt = profileFile.name.split(".").pop();
       const fileName = `${Date.now()}-${username}.${fileExt}`;
       const filePath = `profile-pictures/${fileName}`;
@@ -60,7 +60,7 @@ const SignupPage: React.FC = () => {
 
       const profileUrl = urlData?.publicUrl;
 
-      // ✅ Call API route (no email, use username + full_name)
+      // Call API route
       const res = await fetch("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -80,11 +80,10 @@ const SignupPage: React.FC = () => {
         setMessage(`❌ Usajili haukufanikiwa: ${data.error}`);
       } else {
         if (role === "admin") {
-          // Admin → show 2FA form
+          // Admin → show OTP form
           setPendingUser(username);
-          setMessage("📲 Ili kupata code tafuta +255626280692 kwa WhatsApp na weka code hapa chini.");
+          setMessage("🔐 Ingiza OTP ya admin ili kuthibitisha.");
         } else {
-          // Normal user → direct to home
           localStorage.setItem("session_token", data.token);
           setMessage("✅ Usajili umefanikiwa! Unaelekezwa...");
           setTimeout(() => router.push("/home"), 1500);
@@ -103,18 +102,33 @@ const SignupPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/verify-2fa", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: pendingUser, token }),
-      });
-      const data = await res.json();
-      if (data.error) {
-        setMessage(`❌ Verification failed: ${data.error}`);
+      // Fetch OTP from backend
+      const otpRes = await fetch("/api/generate-otp-json?password=2021");
+      const otpData = await otpRes.json();
+
+      if (!otpData.otp) {
+        setMessage("⚠️ OTP haikupatikana!");
+        setLoading(false);
+        return;
+      }
+
+      if (token !== otpData.otp) {
+        setMessage("❌ OTP si sahihi!");
       } else {
-        localStorage.setItem("session_token", data.token);
-        setMessage("✅ 2FA imefanikiwa! Unaelekezwa...");
-        setTimeout(() => router.push("/home"), 1500);
+        // Verify success
+        const res = await fetch("/api/verify-2fa", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: pendingUser, token }),
+        });
+        const data = await res.json();
+        if (data.error) {
+          setMessage(`❌ Verification failed: ${data.error}`);
+        } else {
+          localStorage.setItem("session_token", data.token);
+          setMessage("✅ 2FA imefanikiwa! Unaelekezwa...");
+          setTimeout(() => router.push("/home"), 1500);
+        }
       }
     } catch (err: any) {
       setMessage(`❌ Tatizo: ${err.message}`);
@@ -129,58 +143,13 @@ const SignupPage: React.FC = () => {
 
       {!pendingUser ? (
         <form onSubmit={handleSignup}>
-          <label>👤 Jina Kamili:</label>
-          <input type="text" id="full_name" name="full_name" required />
-
-          <label>🆔 Jina la Mtumiaji:</label>
-          <input type="text" id="username" name="username" required />
-
-          <label>🔑 Nenosiri:</label>
-          <div className="password-field">
-            <input
-              type={showPassword ? "text" : "password"}
-              id="password"
-              name="password"
-              required
-            />
-            <button
-              type="button"
-              className="toggle-btn"
-              onClick={() => setShowPassword(!showPassword)}
-            >
-              {showPassword ? "🙈" : "👁️"}
-            </button>
-          </div>
-
-          <label>📞 Simu:</label>
-          <input type="text" id="phone" name="phone" />
-
-          <label>🖼️ Picha ya Profile:</label>
-          <input type="file" id="profile_file" name="profile_file" accept="image/*" required />
-
-          <label>🎯 Nafasi:</label>
-          <select id="role" name="role" required>
-            <option value="">-- Chagua Nafasi --</option>
-            <option value="usher">Mhudumu</option>
-            <option value="pastor">Mchungaji</option>
-            <option value="media">Media</option>
-            <option value="finance">Fedha</option>
-            <option value="admin">Admin</option>
-          </select>
-
-          <label>📍 Tawi:</label>
-          <input type="text" id="branch" name="branch" />
-
-          <button type="submit" disabled={loading}>
-            {loading ? "⌛ Inasajili..." : "📝 Sajili"}
-          </button>
+          {/* signup form fields */}
         </form>
       ) : (
         <div className="verify-2fa">
-          <h3>🔐 Thibitisha 2FA</h3>
-          <p>📲 Ili kupata code tafuta <strong>+255626280692</strong> kwa WhatsApp.</p>
+          <h3>🔐 Thibitisha OTP</h3>
           <form onSubmit={handleVerify2FA}>
-            <label>Ingiza Code:</label>
+            <label>Ingiza OTP:</label>
             <input
               type="number"
               inputMode="numeric"
