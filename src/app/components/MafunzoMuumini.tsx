@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import styles from "./MafunzoMuumini.module.css";
+import styles from "./Mafunzo.css";
 import { SetActiveTab } from "../../types/tabs";
 
 const supabase = createClient(
