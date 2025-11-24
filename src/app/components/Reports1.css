@@ -1,0 +1,160 @@
+/* === MAIN WRAPPER === */
+.dashboard {
+  width: 100%;
+  max-width: 1100px;
+  margin: auto;
+  padding: 18px;
+  color: #3c1361;
+  font-family: Arial, sans-serif;
+}
+
+/* === HEADER AREA === */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  gap: 10px;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+/* === CONTROLS (date + run + auto-refresh) === */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.input {
+  padding: 8px 10px;
+  border: 1px solid #b59ec9;
+  border-radius: 6px;
+  font-size: 15px;
+}
+
+.runBtn {
+  background: #6a1b9a;
+  color: white;
+  padding: 8px 14px;
+  font-weight: bold;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+
+.runBtn:hover {
+  background: #53167b;
+}
+
+.label {
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* === PRINT AREA OVERRIDES === */
+@media print {
+  .controls,
+  .backBtn,
+  .actions {
+    display: none !important;
+  }
+
+  .dashboard {
+    padding: 0;
+  }
+}
+
+/* === SUMMARY BOXES IF YOU ADD GRID LATER === */
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.summaryCard {
+  background: #f3e9ff;
+  border-radius: 10px;
+  padding: 12px;
+  font-weight: bold;
+  text-align: center;
+}
+
+/* === CHART SECTIONS === */
+.sectionTitle {
+  font-size: 18px;
+  margin-top: 25px;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.chartRow {
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* === ACTION BUTTONS (Back btn) === */
+.actions {
+  margin-top: 25px;
+}
+
+.backBtn {
+  background: #bbbbbb;
+  padding: 10px 18px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.backBtn:hover {
+  background: #a3a3a3;
+}
+
+/* === RESPONSIVENESS === */
+@media (max-width: 600px) {
+  .title {
+    font-size: 19px;
+  }
+  .dashboard {
+    padding: 12px;
+  }
+  .controls {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .input {
+    width: 100%;
+  }
+  .runBtn {
+    width: 100%;
+  }
+  .label {
+    width: 100%;
+  }
+}
+
+/* === OPTIONAL SWEET LOOK FOR PRINT BUTTON === */
+.printBtn {
+  background: #6a1b9a;
+  color: white;
+  padding: 10px 18px;
+  border: none;
+  font-weight: 700;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.printBtn:hover {
+  background: #53167b;
+}
