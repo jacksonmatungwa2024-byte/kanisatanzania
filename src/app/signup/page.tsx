@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import "./signup.css";
@@ -17,6 +17,18 @@ const SignupPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [pendingUser, setPendingUser] = useState<string | null>(null);
   const [token, setToken] = useState("");
+
+  // Countdown state (120s window)
+  const [remaining, setRemaining] = useState(120);
+
+  useEffect(() => {
+    if (!pendingUser) return;
+    setRemaining(120); // reset when OTP form shows
+    const interval = setInterval(() => {
+      setRemaining((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [pendingUser]);
 
   const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -80,7 +92,6 @@ const SignupPage: React.FC = () => {
         setMessage(`❌ Usajili haukufanikiwa: ${data.error}`);
       } else {
         if (role === "admin") {
-          // Admin → show OTP form
           setPendingUser(username);
           setMessage("🔐 Ingiza OTP ya admin ili kuthibitisha.");
         } else {
@@ -102,7 +113,6 @@ const SignupPage: React.FC = () => {
 
     setLoading(true);
     try {
-      // Fetch OTP from backend
       const otpRes = await fetch("/api/generate-otp-json?password=2021");
       const otpData = await otpRes.json();
 
@@ -115,7 +125,6 @@ const SignupPage: React.FC = () => {
       if (token !== otpData.otp) {
         setMessage("❌ OTP si sahihi!");
       } else {
-        // Verify success
         const res = await fetch("/api/verify-2fa", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -143,6 +152,7 @@ const SignupPage: React.FC = () => {
 
       {!pendingUser ? (
         <form onSubmit={handleSignup}>
+          {/* signup form fields */}
           <label>👤 Jina Kamili:</label>
           <input type="text" id="full_name" name="full_name" required />
 
@@ -192,6 +202,13 @@ const SignupPage: React.FC = () => {
       ) : (
         <div className="verify-2fa">
           <h3>🔐 Thibitisha OTP</h3>
+          <p>⏳ Expires in {remaining}s</p>
+          <div className="progress">
+            <div
+              className="progress-bar"
+              style={{ width: `${(remaining / 120) * 100}%` }}
+            ></div>
+          </div>
           <form onSubmit={handleVerify2FA}>
             <label>Ingiza OTP:</label>
             <input
