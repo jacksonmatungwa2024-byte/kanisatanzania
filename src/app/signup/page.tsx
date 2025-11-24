@@ -143,7 +143,51 @@ const SignupPage: React.FC = () => {
 
       {!pendingUser ? (
         <form onSubmit={handleSignup}>
-          {/* signup form fields */}
+          <label>👤 Jina Kamili:</label>
+          <input type="text" id="full_name" name="full_name" required />
+
+          <label>🆔 Jina la Mtumiaji:</label>
+          <input type="text" id="username" name="username" required />
+
+          <label>🔑 Nenosiri:</label>
+          <div className="password-field">
+            <input
+              type={showPassword ? "text" : "password"}
+              id="password"
+              name="password"
+              required
+            />
+            <button
+              type="button"
+              className="toggle-btn"
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? "🙈" : "👁️"}
+            </button>
+          </div>
+
+          <label>📞 Simu:</label>
+          <input type="text" id="phone" name="phone" />
+
+          <label>🖼️ Picha ya Profile:</label>
+          <input type="file" id="profile_file" name="profile_file" accept="image/*" required />
+
+          <label>🎯 Nafasi:</label>
+          <select id="role" name="role" required>
+            <option value="">-- Chagua Nafasi --</option>
+            <option value="usher">Mhudumu</option>
+            <option value="pastor">Mchungaji</option>
+            <option value="media">Media</option>
+            <option value="finance">Fedha</option>
+            <option value="admin">Admin</option>
+          </select>
+
+          <label>📍 Tawi:</label>
+          <input type="text" id="branch" name="branch" />
+
+          <button type="submit" disabled={loading}>
+            {loading ? "⌛ Inasajili..." : "📝 Sajili"}
+          </button>
         </form>
       ) : (
         <div className="verify-2fa">
