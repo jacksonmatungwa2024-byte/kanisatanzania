@@ -12,8 +12,18 @@ export async function POST(req: Request) {
   try {
     const { username, token } = await req.json();
 
+    // Basic validation
     if (!username || !token) {
-      return NextResponse.json({ error: "Missing username or token" }, { status: 400 });
+      return NextResponse.json(
+        { error: "⚠️ Missing username or token" },
+        { status: 400 }
+      );
+    }
+    if (!/^\d{6}$/.test(token)) {
+      return NextResponse.json(
+        { error: "⚠️ Token must be 6 digits" },
+        { status: 400 }
+      );
     }
 
     // 🔍 Pata secret kutoka DB kwa kutumia username
@@ -24,11 +34,14 @@ export async function POST(req: Request) {
       .single();
 
     if (error || !data) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json({ error: "❌ User not found" }, { status: 404 });
     }
 
     if (!data.totp_secret) {
-      return NextResponse.json({ error: "No 2FA secret set for this user" }, { status: 400 });
+      return NextResponse.json(
+        { error: "⚠️ No 2FA secret set for this user" },
+        { status: 400 }
+      );
     }
 
     // 🔐 Verify token kwa step ya sekunde 30 (standard TOTP)
@@ -36,22 +49,29 @@ export async function POST(req: Request) {
       secret: data.totp_secret,
       encoding: "base32",
       token,
-      step: 30,   // code hubadilika kila sekunde 30
-      window: 1,  // ruhusu drift kidogo (dirisha moja nyuma/mbeleni)
+      step: 30,
+      window: 1,
     });
 
     if (!verified) {
-      return NextResponse.json({ error: "Invalid or expired 2FA code" }, { status: 400 });
+      return NextResponse.json(
+        { error: "❌ Invalid or expired 2FA code" },
+        { status: 400 }
+      );
     }
 
     // ✅ Generate JWT baada ya verification
     const allowedTabs = data.metadata?.allowed_tabs || [];
 
-    const sessionToken = jwt.sign(
-      { username, role: data.role, allowedTabs },
-      process.env.JWT_SECRET!,
-      { expiresIn: "1h" }
-    );
+    const payload = {
+      username,
+      role: data.role,
+      allowedTabs,
+    };
+
+    const sessionToken = jwt.sign(payload, process.env.JWT_SECRET!, {
+      expiresIn: "1h",
+    });
 
     return NextResponse.json({
       token: sessionToken,
@@ -59,6 +79,6 @@ export async function POST(req: Request) {
       allowedTabs,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: `⚠️ Server error: ${err.message}` }, { status: 500 });
   }
-      }
+}
