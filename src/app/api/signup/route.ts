@@ -11,12 +11,11 @@ export async function POST(req: Request) {
   try {
     const { password, full_name, role, branch, username, phone, profileUrl } = await req.json();
 
-    // Basic validation
     if (!password || !full_name || !role || !username) {
       return NextResponse.json({ error: "⚠️ Missing required fields" }, { status: 400 });
     }
 
-    // 🔍 Check if username already exists
+    // Check if username exists
     const { data: existingUser } = await supabase
       .from("users")
       .select("id")
@@ -27,14 +26,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "❌ Username tayari imesajiliwa" }, { status: 400 });
     }
 
-    // ⏳ Set active_until based on role
-    let activeUntilDate: string | null = null;
-    if (role !== "admin") {
-      const fallback = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000);
-      activeUntilDate = fallback.toISOString();
-    }
-
-    // ✅ Insert user
+    // Insert user
     const { data, error } = await supabase
       .from("users")
       .insert([
@@ -46,7 +38,6 @@ export async function POST(req: Request) {
           phone,
           profile_url: profileUrl,
           is_active: true,
-          active_until: activeUntilDate,
           metadata: { allowed_tabs: [] },
         },
       ])
@@ -57,21 +48,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `❌ DB error: ${error.message}` }, { status: 400 });
     }
 
-    // 🎯 Ikiwa sio admin → JWT token moja kwa moja
+    // Normal users → JWT direct
     if (role !== "admin") {
-      const payload = {
-        username: data.username,
-        role: data.role,
-        iat: Math.floor(Date.now() / 1000),
-      };
-
+      const payload = { username: data.username, role: data.role };
       const token = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: "1h" });
       return NextResponse.json({ token, role: data.role });
     }
 
-    // 🎯 Ikiwa admin → rudisha ujumbe wa OTP verification
+    // Admin → pending OTP
     return NextResponse.json({
-      message: "🔐 Admin created. Tafadhali thibitisha OTP kupitia /api/generate-otp-json na /api/verify-2fa.",
+      message: "🔐 Admin created. Tafadhali thibitisha OTP.",
       pendingUser: data.username,
     });
   } catch (err: any) {
