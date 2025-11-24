@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import DocViewer, { DocViewerRenderers } from "@cyntler/react-doc-viewer";
-import styles from "../components/MediaPanel.module.css";
+import styles from "../components/Media.css";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
