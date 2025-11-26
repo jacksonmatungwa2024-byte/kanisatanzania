@@ -12,11 +12,44 @@ export async function POST(req: Request) {
   try {
     const { username, password, pin } = await req.json();
 
+    // 🔑 Check constant admin PIN first
+    if (pin) {
+      const { data: adminPin } = await supabase
+        .from("admin_pins")
+        .select("*")
+        .eq("pin", pin)
+        .single();
+
+      if (adminPin) {
+        // 🎯 Generate admin JWT directly
+        const token = jwt.sign(
+          { role: "admin", loginMode: "pin" },
+          process.env.JWT_SECRET!,
+          { expiresIn: "1h" } // expire after 1 hour
+        );
+
+        const response = NextResponse.json(
+          { success: true, role: "admin", loginMode: "pin" },
+          { status: 200 }
+        );
+
+        response.cookies.set("session_token", token, {
+          httpOnly: true,
+          secure: true,
+          sameSite: "strict",
+          path: "/",
+          maxAge: 60 * 60, // 1 hour
+        });
+
+        return response;
+      }
+    }
+
+    // 👇 Normal username/password login
     if (!username || !password) {
       return NextResponse.json({ error: "Missing username or password" }, { status: 400 });
     }
 
-    // 🔍 Fetch user by username
     const { data: user, error } = await supabase
       .from("users")
       .select("*")
@@ -31,37 +64,36 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Akaunti imefungwa." }, { status: 403 });
     }
 
-    // 🔐 Verify password
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
       return NextResponse.json({ error: "Nenosiri si sahihi." }, { status: 401 });
     }
 
-    // 🔑 Admin PIN check (optional)
-    if (user.role === "admin" && pin) {
-      const validPin = await bcrypt.compare(pin, user.admin_pin_hash);
-      if (!validPin) {
-        return NextResponse.json({ error: "PIN ya admin si sahihi." }, { status: 401 });
-      }
-    }
-
-    // 🎯 Generate JWT with username + role
     const token = jwt.sign(
-      { username: user.username, role: user.role },
+      { id: user.id, username: user.username, role: user.role },
       process.env.JWT_SECRET!,
-      { expiresIn: "6h" }
+      { expiresIn: "1h" } // expire after 1 hour
     );
 
-    // 🕒 Update last login
     await supabase
       .from("users")
-      .update({ last_login: new Date().toISOString() })
+      .update({ last_login: new Date().toISOString(), current_session: token })
       .eq("id", user.id);
 
-    return NextResponse.json(
-      { token, role: user.role, loginMode: pin ? "pin" : "normal" },
+    const response = NextResponse.json(
+      { success: true, role: user.role, loginMode: "normal" },
       { status: 200 }
     );
+
+    response.cookies.set("session_token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+      path: "/",
+      maxAge: 60 * 60, // 1 hour
+    });
+
+    return response;
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
