@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from "react";
 import "./Dashboard.css";
 import { initNetworkStatus } from "../../utils/networkStatus";
 import { usePermissions } from "@/utils/usePermissions";
+
 const roleLabels: Record<string, string> = {
   admin: "Admin",
   usher: "Mhudumu",
@@ -25,41 +26,37 @@ export default function Dashboard() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [toast, setToast] = useState("");
 
-  // 🔒 Session check using JWT
+  // 🔒 Session check using cookie
   useEffect(() => {
     const checkSession = async () => {
-      const token = localStorage.getItem("session_token");
-      if (!token) {
+      try {
+        const res = await fetch("/api/me", { credentials: "include" }); // 👈 cookie auto-sent
+        const data = await res.json();
+
+        if (data.error) {
+          window.location.href = "/login";
+          return;
+        }
+
+        setRole(data.role);
+        setFullName(data.full_name || "");
+        setBranch(data.branch || "");
+        setProfileUrl(data.profile_url || "");
+        setLastLogin(data.last_login ? new Date(data.last_login).toLocaleString() : "");
+        setAllowedTabs(data.allowedTabs || []);
+
+        // 🔹 Auto logout after 30 mins inactivity
+        const timeout = setTimeout(async () => {
+          alert("Umeachwa bila shughuli. Tafadhali ingia tena.");
+          await fetch("/api/logout", { method: "POST", credentials: "include" });
+          window.location.href = "/login";
+        }, 30 * 60 * 1000);
+
+        return () => clearTimeout(timeout);
+      } catch (err) {
+        console.error("Session load failed:", err);
         window.location.href = "/login";
-        return;
       }
-
-      const res = await fetch("/api/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-
-      if (data.error) {
-        localStorage.removeItem("session_token");
-        window.location.href = "/login";
-        return;
-      }
-
-      setRole(data.role);
-      setFullName(data.full_name || "");
-      setBranch(data.branch || "");
-      setProfileUrl(data.profile_url || "");
-      setLastLogin(data.last_login ? new Date(data.last_login).toLocaleString() : "");
-      setAllowedTabs(data.allowedTabs || []);
-
-      // 🔹 Auto logout after 30 mins inactivity
-      const timeout = setTimeout(() => {
-        alert("Umeachwa bila shughuli. Tafadhali ingia tena.");
-        localStorage.removeItem("session_token");
-        window.location.href = "/login";
-      }, 30 * 60 * 1000);
-
-      return () => clearTimeout(timeout);
     };
 
     checkSession();
@@ -108,14 +105,13 @@ export default function Dashboard() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("session_token");
+  const handleLogout = async () => {
+    await fetch("/api/logout", { method: "POST", credentials: "include" }); // 👈 clear cookie + DB
     window.location.href = "/logout";
   };
 
   return (
     <div className="dashboard-container">
-      {/* Toast popup */}
       {toast && <div className="toast">{toast}</div>}
 
       <div className="theme-verse">“Nuru yako itangaze gizani.” — Isaya 60:1</div>
@@ -124,7 +120,6 @@ export default function Dashboard() {
       {lastLogin && <div className="info-block">🕒 Ilipoingia mwisho: {lastLogin}</div>}
       {profileUrl && <img src={profileUrl} alt="Profile" className="profile-img" />}
 
-      {/* 🔊 Audio Theme */}
       <button onClick={handleAudioToggle}>
         🔊 {audioPlaying ? "Pause Theme" : "Play Theme"}
       </button>
@@ -132,12 +127,10 @@ export default function Dashboard() {
         <source src="/ana.mp3" type="audio/mp3" />
       </audio>
 
-      {/* 🟢 Status Indicator */}
       <div className={`status-indicator ${statusLight}`}>
         {statusText}
       </div>
 
-      {/* 🧭 Panel Links */}
       <div className="panel-links">
         {allowedTabs.includes("admin") && (
           <div onClick={() => handleClick("admin", "/admin")}>Admin Panel</div>
@@ -156,10 +149,9 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* 🚪 Logout */}
       <button onClick={handleLogout} className="logout-btn">
         🚪 Logout
       </button>
     </div>
   );
-}
+          }
