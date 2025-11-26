@@ -491,7 +491,8 @@ export default function PastorUsajili() {
                     <th>Muumini Namba</th>
                     <th>Majina</th>
                     <th>Tarehe</th>
-                    <th<Ushuhuda</th>
+                    <th>Ushuhuda</th>
+
                     <th>Sajili Na</th>
                     <th>Created At</th>
                   </tr>
