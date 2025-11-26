@@ -12,7 +12,7 @@ interface UserListProps {
 }
 
 export default function UserList({ users, onDelete, onGenerateOtp, onApprove, saving }: UserListProps) {
-  const [selectedCode, setSelectedCode] = useState("+255");
+  const [selectedCodes, setSelectedCodes] = useState<{ [key: number]: string }>({});
   const [phoneNumbers, setPhoneNumbers] = useState<{ [key: number]: string }>({});
 
   return (
@@ -20,6 +20,9 @@ export default function UserList({ users, onDelete, onGenerateOtp, onApprove, sa
       {users.map((user) => {
         const status = user.metadata?.reset_status;
         const otpExists = user.metadata?.password_reset_otp;
+        const code = selectedCodes[user.id] || "+255";
+        const phone = phoneNumbers[user.id] || "";
+
         return (
           <div key={user.id} className="user-card">
             <div>{user.full_name} ({user.role})</div>
@@ -27,18 +30,33 @@ export default function UserList({ users, onDelete, onGenerateOtp, onApprove, sa
             <div>Status: {status || "✅ Active"}</div>
 
             <div className="otp-section">
-              <CountryCodeSelector value={selectedCode} onChange={setSelectedCode} />
+              <CountryCodeSelector
+                value={code}
+                onChange={(newCode) => setSelectedCodes(prev => ({ ...prev, [user.id]: newCode }))}
+              />
               <input
                 type="text"
                 placeholder="Namba ya WhatsApp"
-                value={phoneNumbers[user.id] || ""}
+                value={phone}
                 onChange={(e) => setPhoneNumbers(prev => ({ ...prev, [user.id]: e.target.value }))}
               />
-              <button onClick={() => onGenerateOtp(user.id, selectedCode + phoneNumbers[user.id], user.metadata)} disabled={saving}>
+              <button
+                onClick={() => {
+                  if (!phone) {
+                    alert("⚠️ Tafadhali weka namba ya WhatsApp.");
+                    return;
+                  }
+                  onGenerateOtp(user.id, code + phone, user.metadata || {});
+                }}
+                disabled={saving}
+              >
                 📲 Tuma OTP
               </button>
               {status === "waiting_approval" && otpExists && (
-                <button onClick={() => onApprove(user.id, user.metadata)} disabled={saving}>
+                <button
+                  onClick={() => onApprove(user.id, user.metadata || {})}
+                  disabled={saving}
+                >
                   ✅ Thibitisha OTP
                 </button>
               )}
@@ -52,4 +70,4 @@ export default function UserList({ users, onDelete, onGenerateOtp, onApprove, sa
       })}
     </div>
   );
-      }
+}
