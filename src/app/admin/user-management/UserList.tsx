@@ -5,7 +5,7 @@ import CountryCodeSelector from "./CountryCodeSelector";
 
 interface UserListProps {
   users: any[];
-  onDelete: (userId: number, email: string) => void;
+  onDelete: (userId: number, username: string) => void; // 👈 sasa username
   onGenerateOtp: (userId: number, phoneNumberWithCode: string, currentMeta: any) => void;
   onApprove: (userId: number, currentMeta: any) => void;
   saving: boolean;
@@ -26,7 +26,7 @@ export default function UserList({ users, onDelete, onGenerateOtp, onApprove, sa
         return (
           <div key={user.id} className="user-card">
             <div>{user.full_name} ({user.role})</div>
-            <div>{user.email}</div>
+            <div>{user.username}</div> {/* 👈 onyesha username badala ya email */}
             <div>Status: {status || "✅ Active"}</div>
 
             <div className="otp-section">
@@ -62,7 +62,7 @@ export default function UserList({ users, onDelete, onGenerateOtp, onApprove, sa
               )}
             </div>
 
-            <button onClick={() => onDelete(user.id, user.email)} disabled={saving}>
+            <button onClick={() => onDelete(user.id, user.username)} disabled={saving}>
               🗑️ Futa Mtumiaji
             </button>
           </div>
