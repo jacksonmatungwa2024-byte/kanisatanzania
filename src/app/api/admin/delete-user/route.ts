@@ -1,23 +1,18 @@
-// src/app/api/admin/delete-user/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import jwt from "jsonwebtoken";
 
-// Supabase client with service role key (bypasses RLS)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! 
+  process.env.SUPABASE_SERVICE_ROLE_KEY! // service role key bypasses RLS
 );
 
 export async function POST(req: Request) {
   try {
-    const { id } = await req.json();
+    const { id, username } = await req.json();
+    const userId = id ? Number(id) : null;
 
-    if (!id || typeof id !== "number") {
-      return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
-    }
-
-    // ✅ Auth check
+    // 🔐 Auth check
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -30,22 +25,39 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // ✅ Hard delete from users table (bypasses RLS)
-    const { data, error } = await supabase
+    // 🗑️ Try delete by ID first
+    let { error, count } = await supabase
       .from("users")
-      .delete()
-      .eq("id", id)
-      .select();
+      .delete({ count: "exact" })
+      .eq("id", userId ?? -1);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    if (!data || data.length === 0) {
+    // If no rows deleted by ID, try by username
+    if (!count && username) {
+      const result = await supabase
+        .from("users")
+        .delete({ count: "exact" })
+        .eq("username", username);
+
+      if (result.error) {
+        return NextResponse.json({ error: result.error.message }, { status: 400 });
+      }
+
+      if (!result.count) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+
+      return NextResponse.json({ success: true, deletedBy: "username" }, { status: 200 });
+    }
+
+    if (!count) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, deleted: data[0] }, { status: 200 });
+    return NextResponse.json({ success: true, deletedBy: "id" }, { status: 200 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Server error" }, { status: 500 });
   }
