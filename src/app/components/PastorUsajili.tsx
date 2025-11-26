@@ -1,27 +1,77 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useCallback } from "react"
 import { createClient, SupabaseClient } from "@supabase/supabase-js"
-import './PastorUsajili.css'
-import html2pdf from "html2pdf.js"
+import "./PastorUsajili.css"
+
+// REMOVE unused static import of html2pdf
+// import html2pdf from "html2pdf.js"
 
 const supabase: SupabaseClient = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL as string,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
 )
 
-type WatuRow = { id: number; majina: string; simu?: string | null; jinsi: string; umbo: string; bahasha?: string | null; muumini_namba?: string | null; created_at?: string | null; [key: string]: any }
-type MahadhurioRow = { id: number; muumini_id?: number | null; muumini_namba?: string | null; majina?: string | null; aina?: string | null; ibada?: string | null; tarehe?: string | null; created_at?: string | null; [key: string]: any }
-type ApprovalRow = { id: number; muumini_id: string; status?: string; tarehe: string; created_at?: string; updated_at?: string; [key: string]: any }
-type WokovuRow = { id: string; muumini_id?: number | null; muumini_namba?: string | null; majina?: string | null; tarehe?: string | null; ushuhuda?: string | null; sajili_na?: string | null; created_at?: string | null; [key: string]: any }
+// ---------------- TYPES --------------------
+
+type WatuRow = {
+  id: number
+  majina: string
+  simu?: string | null
+  jinsi: string
+  umbo: string
+  bahasha?: string | null
+  muumini_namba?: string | null
+  created_at?: string | null
+  [key: string]: any
+}
+
+type MahadhurioRow = {
+  id: number
+  muumini_id?: number | null
+  muumini_namba?: string | null
+  majina?: string | null
+  aina?: string | null
+  ibada?: string | null
+  tarehe?: string | null
+  created_at?: string | null
+  [key: string]: any
+}
+
+type ApprovalRow = {
+  id: number
+  muumini_id: string
+  status?: string
+  tarehe: string
+  created_at?: string
+  updated_at?: string
+  [key: string]: any
+}
+
+type WokovuRow = {
+  id: string
+  muumini_id?: number | null
+  muumini_namba?: string | null
+  majina?: string | null
+  tarehe?: string | null
+  ushuhuda?: string | null
+  sajili_na?: string | null
+  created_at?: string | null
+  [key: string]: any
+}
+
+// ----------------------------------------
 
 export default function PastorUsajili() {
-  const [active, setActive] = useState<"waliosajiliwa" | "mahadhurio" | "wachanga">("waliosajiliwa")
-  const [wachangaSub, setWachangaSub] = useState<"approval" | "waliokoka">("approval")
+  const [active, setActive] =
+    useState<"waliosajiliwa" | "mahadhurio" | "wachanga">("waliosajiliwa")
+  const [wachangaSub, setWachangaSub] =
+    useState<"approval" | "waliokoka">("approval")
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [autoRefresh, setAutoRefresh] = useState(true)
+
   const REFRESH_MS = 2 * 60 * 1000
 
   const [watu, setWatu] = useState<WatuRow[]>([])
@@ -30,8 +80,11 @@ export default function PastorUsajili() {
   const WATU_PAGE_SIZE = 50
 
   const [mahadhurio, setMahadhurio] = useState<MahadhurioRow[]>([])
-  const [mhFilterRange, setMhFilterRange] = useState<"siku" | "wiki" | "mwezi">("siku")
-  const [mhDate, setMhDate] = useState<string>(() => new Date().toISOString().slice(0, 10))
+  const [mhFilterRange, setMhFilterRange] =
+    useState<"siku" | "wiki" | "mwezi">("siku")
+  const [mhDate, setMhDate] = useState(
+    () => new Date().toISOString().slice(0, 10)
+  )
   const [mhPage, setMhPage] = useState(1)
   const MH_PAGE_SIZE = 50
 
@@ -43,241 +96,260 @@ export default function PastorUsajili() {
   const [wokovuPage, setWokovuPage] = useState(1)
   const WOKOVU_PAGE_SIZE = 50
 
-  useEffect(() => { fetchWatu() }, [watuPage, watuQuery])
-  useEffect(() => { fetchMahadhurio() }, [mhFilterRange, mhDate, mhPage])
-  useEffect(() => { fetchApprovals(); fetchWokovu() }, [approvalsPage, wokovuPage, wachangaSub])
+  // ---------------- FETCH FUNCTIONS WITH useCallback --------------------
 
-  useEffect(() => {
-    let mounted = true
-    if (!autoRefresh) return
-    const t = window.setInterval(() => {
-      if (!mounted) return
-      if (active === "waliosajiliwa") fetchWatu()
-      if (active === "mahadhurio") fetchMahadhurio()
-      if (active === "wachanga") { fetchApprovals(); fetchWokovu() }
-    }, REFRESH_MS)
-    return () => {
-      mounted = false
-      clearInterval(t)
-    }
-  }, [autoRefresh, active, mhFilterRange, mhDate, watuPage, mhPage, approvalsPage, wokovuPage])
-
-  async function fetchWatu() {
+  const fetchWatu = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
       const offset = (watuPage - 1) * WATU_PAGE_SIZE
-      let q = supabase.from("watu").select("*").order("created_at", { ascending: false }).range(offset, offset + WATU_PAGE_SIZE - 1)
-      if (watuQuery && watuQuery.trim()) {
+
+      let query = supabase
+        .from("watu")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .range(offset, offset + WATU_PAGE_SIZE - 1)
+
+      if (watuQuery.trim()) {
         const like = `%${watuQuery.trim()}%`
-        q = supabase.from("watu").select("*").or(`majina.ilike.${like},muumini_namba.ilike.${like},simu.ilike.${like},bahasha.ilike.${like}`).order("created_at", { ascending: false }).range(offset, offset + WATU_PAGE_SIZE - 1)
+        query = supabase
+          .from("watu")
+          .select("*")
+          .or(
+            `majina.ilike.${like},muumini_namba.ilike.${like},simu.ilike.${like},bahasha.ilike.${like}`
+          )
+          .order("created_at", { ascending: false })
+          .range(offset, offset + WATU_PAGE_SIZE - 1)
       }
-      const { data, error } = await q
+
+      const { data, error } = await query
       if (error) throw error
-      setWatu((data as WatuRow[]) ?? [])
+      setWatu(data ?? [])
     } catch (err: any) {
-      setError(String(err?.message ?? err))
+      setError(err.message ?? String(err))
       setWatu([])
     } finally {
       setLoading(false)
     }
-  }
+  }, [watuPage, watuQuery])
 
-  async function fetchMahadhurio() {
+  const fetchMahadhurio = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
       const offset = (mhPage - 1) * MH_PAGE_SIZE
-      const baseDate = new Date(mhDate)
-      let start = new Date(baseDate)
-      let end = new Date(baseDate)
+      const base = new Date(mhDate)
+
+      let start = new Date(base)
+      let end = new Date(base)
+
       if (mhFilterRange === "siku") {
         start.setHours(0, 0, 0, 0)
         end.setHours(23, 59, 59, 999)
       } else if (mhFilterRange === "wiki") {
-        const day = baseDate.getDay()
-        const diffToMonday = (day + 6) % 7
-        start = new Date(baseDate)
-        start.setDate(baseDate.getDate() - diffToMonday)
+        const day = base.getDay()
+        const diff = (day + 6) % 7
+        start = new Date(base)
+        start.setDate(base.getDate() - diff)
         start.setHours(0, 0, 0, 0)
+
         end = new Date(start)
         end.setDate(start.getDate() + 6)
         end.setHours(23, 59, 59, 999)
       } else {
-        start = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1)
-        end = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0)
+        start = new Date(base.getFullYear(), base.getMonth(), 1)
+        end = new Date(base.getFullYear(), base.getMonth() + 1, 0)
         end.setHours(23, 59, 59, 999)
       }
+
       const startISO = start.toISOString().split("T")[0]
       const endISO = end.toISOString().split("T")[0]
-      const { data, error } = await supabase.from("mahadhurio").select("*").gte("tarehe", startISO).lte("tarehe", endISO).order("tarehe", { ascending: false }).range(offset, offset + MH_PAGE_SIZE - 1)
+
+      const { data, error } = await supabase
+        .from("mahadhurio")
+        .select("*")
+        .gte("tarehe", startISO)
+        .lte("tarehe", endISO)
+        .order("tarehe", { ascending: false })
+        .range(offset, offset + MH_PAGE_SIZE - 1)
+
       if (error) throw error
-      setMahadhurio((data as MahadhurioRow[]) ?? [])
+      setMahadhurio(data ?? [])
     } catch (err: any) {
-      setError(String(err?.message ?? err))
+      setError(err.message ?? String(err))
       setMahadhurio([])
     } finally {
       setLoading(false)
     }
-  }
+  }, [mhDate, mhFilterRange, mhPage])
 
-  async function fetchApprovals() {
+  const fetchApprovals = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
       const offset = (approvalsPage - 1) * APPROVALS_PAGE_SIZE
-      const { data, error } = await supabase.from("mafunzo").select("*").eq("status", "pending").order("created_at", { ascending: false }).range(offset, offset + APPROVALS_PAGE_SIZE - 1)
+      const { data, error } = await supabase
+        .from("mafunzo")
+        .select("*")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .range(offset, offset + APPROVALS_PAGE_SIZE - 1)
+
       if (error) throw error
-      setApprovals((data as ApprovalRow[]) ?? [])
+      setApprovals(data ?? [])
     } catch (err: any) {
-      setError(String(err?.message ?? err))
+      setError(err.message ?? String(err))
       setApprovals([])
     } finally {
       setLoading(false)
     }
-  }
+  }, [approvalsPage])
 
-  async function fetchWokovu() {
+  const fetchWokovu = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
       const offset = (wokovuPage - 1) * WOKOVU_PAGE_SIZE
-      const { data, error } = await supabase.from("wokovu").select("*").order("created_at", { ascending: false }).range(offset, offset + WOKOVU_PAGE_SIZE - 1)
+      const { data, error } = await supabase
+        .from("wokovu")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .range(offset, offset + WOKOVU_PAGE_SIZE - 1)
+
       if (error) throw error
-      setWokovu((data as WokovuRow[]) ?? [])
+      setWokovu(data ?? [])
     } catch (err: any) {
-      setError(String(err?.message ?? err))
+      setError(err.message ?? String(err))
       setWokovu([])
     } finally {
       setLoading(false)
     }
+  }, [wokovuPage])
+
+  // ---------------- USE EFFECTS --------------------
+
+  useEffect(() => {
+    fetchWatu()
+  }, [fetchWatu])
+
+  useEffect(() => {
+    fetchMahadhurio()
+  }, [fetchMahadhurio])
+
+  useEffect(() => {
+    fetchApprovals()
+    fetchWokovu()
+  }, [fetchApprovals, fetchWokovu, wachangaSub])
+
+  useEffect(() => {
+    if (!autoRefresh) return
+
+    const interval = setInterval(() => {
+      if (active === "waliosajiliwa") fetchWatu()
+      if (active === "mahadhurio") fetchMahadhurio()
+      if (active === "wachanga") {
+        fetchApprovals()
+        fetchWokovu()
+      }
+    }, REFRESH_MS)
+
+    return () => clearInterval(interval)
+  }, [
+    autoRefresh,
+    active,
+    REFRESH_MS,
+    fetchWatu,
+    fetchMahadhurio,
+    fetchApprovals,
+    fetchWokovu,
+  ])
+
+  // ---------------- PRINT TABLE --------------------
+
+  async function printTable(tableId: string) {
+    if (typeof window === "undefined") return
+
+    const table = document.getElementById(tableId)
+    if (!table) {
+      alert("Hakuna jedwali la kuchapisha")
+      return
+    }
+
+    // Dynamic import to avoid unused import
+    const html2pdf = (await import("html2pdf.js")).default
+
+    const container = document.createElement("div")
+    container.style.backgroundColor = "#0b1e3a"
+    container.style.color = "#e0f2e9"
+    container.style.padding = "20px"
+
+    const tableClone = table.cloneNode(true) as HTMLElement
+
+    const options = {
+      margin: 10,
+      filename: `${tableId}.pdf`,
+      image: { type: "jpeg" as const, quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" as const },
+    }
+
+    html2pdf().set(options).from(tableClone).save()
   }
 
-  function downloadCSV<T extends Record<string, any>>(rows: T[], filename = "export.csv") {
-    if (!rows || rows.length === 0) {
+  // ---------------- CSV EXPORT --------------------
+
+  function downloadCSV<T extends Record<string, any>>(
+    rows: T[],
+    filename = "export.csv"
+  ) {
+    if (!rows.length) {
       alert("Hakuna data ya kupakua")
       return
     }
-    const keys = Array.from(rows.reduce((s, r) => {
-      Object.keys(r).forEach(k => s.add(k))
-      return s
-    }, new Set<string>()))
+
+    const keys = Array.from(
+      rows.reduce((s, r) => {
+        Object.keys(r).forEach((k) => s.add(k))
+        return s
+      }, new Set<string>())
+    )
+
     const csv = [
       keys.join(","),
-      ...rows.map(r => keys.map(k => {
-        const v = r[k] ?? ""
-        // Escape quotes
-        return `"${String(v).replace(/"/g, '""')}"`
-      }).join(","))
+      ...rows.map((r) =>
+        keys
+          .map((k) => `"${String(r[k] ?? "").replace(/"/g, '""')}"`)
+          .join(",")
+      ),
     ].join("\n")
+
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
     const link = document.createElement("a")
     link.href = URL.createObjectURL(blob)
-    link.setAttribute("download", filename)
-    document.body.appendChild(link)
+    link.download = filename
     link.click()
-    document.body.removeChild(link)
   }
 
+  // ---------------- UI --------------------
 
-async function printTable(tableId: string) {
-  if (typeof window === "undefined") return; // Make sure it only runs on client
-
-  const table = document.getElementById(tableId);
-  if (!table) {
-    alert("Hakuna jedwali la kuchapisha");
-    return;
-  }
-
-  // Dynamically import html2pdf only in browser
-  const html2pdf = (await import("html2pdf.js")).default;
-
-  // Create a container for printable content
-  const container = document.createElement("div");
-  container.style.backgroundColor = "#0b1e3a";
-  container.style.color = "#e0f2e9";
-  container.style.padding = "20px";
-  container.style.fontFamily = "Arial, sans-serif";
-
-  const header = document.createElement("div");
-  header.style.textAlign = "center";
-  header.style.marginBottom = "15px";
-
-  const logo = document.createElement("img");
-  logo.src = "/rhema.jpg";
-  logo.alt = "Rhema Logo";
-  logo.style.width = "90px";
-  logo.style.marginBottom = "5px";
-
-  const verse = document.createElement("div");
-  verse.textContent = "“Basi weni na akili mkeshe katika sala” — 1 PETRO 4:7";
-  verse.style.color = "#00b87a";
-  verse.style.fontWeight = "500";
-  verse.style.fontSize = "14pt";
-
-  header.appendChild(logo);
-  header.appendChild(verse);
-
-  const tableClone = table.cloneNode(true) as HTMLElement;
-  tableClone.style.width = "100%";
-  tableClone.style.borderCollapse = "collapse";
-  tableClone.style.backgroundColor = "#11294a";
-  tableClone.style.color = "#e0f2e9";
-
-  const ths = tableClone.querySelectorAll("th");
-  ths.forEach(th => {
-    (th as HTMLElement).style.backgroundColor = "#007f5f";
-    (th as HTMLElement).style.color = "white";
-    (th as HTMLElement).style.textTransform = "uppercase";
-    (th as HTMLElement).style.border = "1px solid #00b87a";
-    (th as HTMLElement).style.padding = "8px";
-  });
-
-  const tds = tableClone.querySelectorAll("td");
-  tds.forEach(td => {
-    (td as HTMLElement).style.border = "1px solid #00b87a";
-    (td as HTMLElement).style.padding = "8px";
-  });
-
-  const trs = tableClone.querySelectorAll("tbody tr");
-  trs.forEach((tr, i) => {
-    (tr as HTMLElement).style.backgroundColor = i % 2 === 0 ? "#0e2240" : "#11294a";
-  });
-
-  container.appendChild(header);
-  container.appendChild(tableClone);
-
-  const options = {
-    margin: 10,
-    filename: `${tableId}.pdf`,
-    image: { type: "jpeg" as "jpeg", quality: 0.98 },
-    html2canvas: { scale: 2, backgroundColor: "#0b1e3a" },
-    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" as "portrait" },
-  };
-
-  html2pdf().set(options).from(container).save();
-}
-
-
- return (
-  <>
-    <div className="navbar">
-      <button onClick={() => setActive("waliosajiliwa")}>Waliosajiliwa</button>
-      <button onClick={() => setActive("mahadhurio")}>Mahadhurio</button>
-      <button onClick={() => setActive("wachanga")}>Wachanga</button>
-    </div>
-
-    
+  return (
+    <>
+      <div className="navbar">
+        <button onClick={() => setActive("waliosajiliwa")}>Waliosajiliwa</button>
+        <button onClick={() => setActive("mahadhurio")}>Mahadhurio</button>
+        <button onClick={() => setActive("wachanga")}>Wachanga</button>
+      </div>
 
       {error && <div>{error}</div>}
       {loading && <div>Loading...</div>}
 
+      {/* --- WALIOSAJILIWA --- */}
       {active === "waliosajiliwa" && (
         <>
           <input
             placeholder="Tafuta..."
             value={watuQuery}
-            onChange={e => setWatuQuery(e.target.value)}
+            onChange={(e) => setWatuQuery(e.target.value)}
           />
           <table id="table-waliosajiliwa">
             <thead>
@@ -292,7 +364,7 @@ async function printTable(tableId: string) {
               </tr>
             </thead>
             <tbody>
-              {watu.map(w => (
+              {watu.map((w) => (
                 <tr key={w.id}>
                   <td>{w.majina}</td>
                   <td>{w.simu ?? "-"}</td>
@@ -305,25 +377,36 @@ async function printTable(tableId: string) {
               ))}
             </tbody>
           </table>
-          <button onClick={() => printTable("table-waliosajiliwa")}>Print PDF</button>
-          <button onClick={() => downloadCSV(watu, "waliosajiliwa.csv")}>Download CSV</button>
+
+          <button onClick={() => printTable("table-waliosajiliwa")}>
+            Print PDF
+          </button>
+          <button onClick={() => downloadCSV(watu, "waliosajiliwa.csv")}>
+            Download CSV
+          </button>
         </>
       )}
 
+      {/* --- MAHADHURIO --- */}
       {active === "mahadhurio" && (
         <>
           <div>
-            <select value={mhFilterRange} onChange={e => setMhFilterRange(e.target.value as any)}>
+            <select
+              value={mhFilterRange}
+              onChange={(e) => setMhFilterRange(e.target.value as any)}
+            >
               <option value="siku">Siku</option>
               <option value="wiki">Wiki</option>
               <option value="mwezi">Mwezi</option>
             </select>
+
             <input
               type="date"
               value={mhDate}
-              onChange={e => setMhDate(e.target.value)}
+              onChange={(e) => setMhDate(e.target.value)}
             />
           </div>
+
           <table id="table-mahadhurio">
             <thead>
               <tr>
@@ -334,7 +417,7 @@ async function printTable(tableId: string) {
               </tr>
             </thead>
             <tbody>
-              {mahadhurio.map(mh => (
+              {mahadhurio.map((mh) => (
                 <tr key={mh.id}>
                   <td>{mh.tarehe ?? "-"}</td>
                   <td>{mh.majina ?? "-"}</td>
@@ -344,17 +427,24 @@ async function printTable(tableId: string) {
               ))}
             </tbody>
           </table>
-          <button onClick={() => printTable("table-mahadhurio")}>Print PDF</button>
-          <button onClick={() => downloadCSV(mahadhurio, "mahadhurio.csv")}>Download CSV</button>
+
+          <button onClick={() => printTable("table-mahadhurio")}>
+            Print PDF
+          </button>
+          <button onClick={() => downloadCSV(mahadhurio, "mahadhurio.csv")}>
+            Download CSV
+          </button>
         </>
       )}
 
+      {/* ---- WACHANGA ---- */}
       {active === "wachanga" && (
         <>
           <div>
             <button onClick={() => setWachangaSub("approval")}>Approvals</button>
             <button onClick={() => setWachangaSub("waliokoka")}>Waliokoka</button>
           </div>
+
           {wachangaSub === "approval" && (
             <>
               <table id="table-approval">
@@ -369,7 +459,7 @@ async function printTable(tableId: string) {
                   </tr>
                 </thead>
                 <tbody>
-                  {approvals.map(a => (
+                  {approvals.map((a) => (
                     <tr key={a.id}>
                       <td>{a.id}</td>
                       <td>{a.muumini_id}</td>
@@ -381,10 +471,16 @@ async function printTable(tableId: string) {
                   ))}
                 </tbody>
               </table>
-              <button onClick={() => printTable("table-approval")}>Print PDF</button>
-              <button onClick={() => downloadCSV(approvals, "approvals.csv")}>Download CSV</button>
+
+              <button onClick={() => printTable("table-approval")}>
+                Print PDF
+              </button>
+              <button onClick={() => downloadCSV(approvals, "approvals.csv")}>
+                Download CSV
+              </button>
             </>
           )}
+
           {wachangaSub === "waliokoka" && (
             <>
               <table id="table-waliokoka">
@@ -395,13 +491,13 @@ async function printTable(tableId: string) {
                     <th>Muumini Namba</th>
                     <th>Majina</th>
                     <th>Tarehe</th>
-                    <th>Ushuhuda</th>
+                    <th<Ushuhuda</th>
                     <th>Sajili Na</th>
                     <th>Created At</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {wokovu.map(w => (
+                  {wokovu.map((w) => (
                     <tr key={w.id}>
                       <td>{w.id}</td>
                       <td>{w.muumini_id ?? "-"}</td>
@@ -415,8 +511,13 @@ async function printTable(tableId: string) {
                   ))}
                 </tbody>
               </table>
-              <button onClick={() => printTable("table-waliokoka")}>Print PDF</button>
-              <button onClick={() => downloadCSV(wokovu, "waliokoka.csv")}>Download CSV</button>
+
+              <button onClick={() => printTable("table-waliokoka")}>
+                Print PDF
+              </button>
+              <button onClick={() => downloadCSV(wokovu, "waliokoka.csv")}>
+                Download CSV
+              </button>
             </>
           )}
         </>
