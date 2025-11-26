@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 import jwt from "jsonwebtoken";
 
@@ -12,14 +13,20 @@ export async function POST(req: Request) {
     const { id, username } = await req.json();
     const userId = id ? Number(id) : null;
 
-    // 🔐 Auth check
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
+    // 🔐 Auth check via cookie
+    const cookieStore = cookies();
+    const token = cookieStore.get("session_token")?.value;
+
+    if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const token = authHeader.split(" ")[1];
-    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET!);
+    } catch {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
 
     if (decoded.role !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -62,4 +69,4 @@ export async function POST(req: Request) {
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Server error" }, { status: 500 });
   }
-}
+                                  }
