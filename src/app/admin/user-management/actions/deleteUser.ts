@@ -3,12 +3,6 @@
 
 export async function deleteUser(userId?: number, username?: string): Promise<void> {
   try {
-    const token = localStorage.getItem("session_token");
-    if (!token) {
-      alert("❌ Huna session token, tafadhali login tena.");
-      return;
-    }
-
     // Build request body: either id or username
     const body: any = {};
     if (userId) body.id = userId;
@@ -21,11 +15,9 @@ export async function deleteUser(userId?: number, username?: string): Promise<vo
 
     const res = await fetch("/api/admin/delete-user", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      credentials: "include", // 👈 cookie ya session_token itatumwa automatically
     });
 
     const data = await res.json();
