@@ -1,23 +1,29 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 import jwt from "jsonwebtoken";
 
-// Supabase client with service role key (bypasses RLS)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    // ✅ Check JWT from Authorization header
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // ✅ Check JWT from cookie
+    const cookieStore = cookies();
+    const token = cookieStore.get("session_token")?.value;
+
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized: no session token" }, { status: 401 });
     }
 
-    const token = authHeader.split(" ")[1];
-    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET!);
+    } catch {
+      return NextResponse.json({ error: "Unauthorized: invalid token" }, { status: 401 });
+    }
 
     if (decoded.role !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -26,7 +32,8 @@ export async function GET(req: Request) {
     // ✅ Fetch all users
     const { data, error } = await supabase
       .from("users")
-      .select("id, full_name, email, role, is_active, branch, phone, username, created_at");
+      .select("id, full_name, role, is_active, branch, phone, username, created_at")
+      .order("full_name", { ascending: true });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
@@ -34,6 +41,6 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ users: data }, { status: 200 });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err.message || "Server error" }, { status: 500 });
   }
 }
