@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     }
 
     // 🗑️ Try delete by ID first
-    let { error, count } = await supabase
+    const { error, count } = await supabase
       .from("users")
       .delete({ count: "exact" })
       .eq("id", userId ?? -1);
