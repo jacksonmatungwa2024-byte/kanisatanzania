@@ -38,20 +38,12 @@ export default function AdminPanel() {
     let timeout: NodeJS.Timeout;
 
     const loadSession = async () => {
-      const token = localStorage.getItem("session_token");
-      if (!token) {
-        router.push("/login");
-        return;
-      }
-
       try {
-        const res = await fetch("/api/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        // ✅ Cookie automatically sent by browser
+        const res = await fetch("/api/me", { credentials: "include" });
         const data = await res.json();
 
         if (data.error) {
-          localStorage.removeItem("session_token");
           router.push("/login");
           return;
         }
@@ -59,8 +51,8 @@ export default function AdminPanel() {
         setUser(data);
 
         if (data.role === "admin") {
-          setAllowedTabs(allTabs); // admin anaona zote
-          setActiveTab(allTabs[0].id); // default tab
+          setAllowedTabs(allTabs);
+          setActiveTab(allTabs[0].id);
         } else {
           const userTabs = data.allowedTabs || [];
           const filtered = allTabs.filter((tab) => userTabs.includes(tab.id));
@@ -69,14 +61,13 @@ export default function AdminPanel() {
         }
 
         // Auto logout after 30 mins inactivity
-        timeout = setTimeout(() => {
+        timeout = setTimeout(async () => {
           alert("⏳ Umeachwa bila shughuli. Tafadhali ingia tena.");
-          localStorage.removeItem("session_token");
+          await fetch("/api/logout", { method: "POST", credentials: "include" });
           router.push("/login");
         }, 30 * 60 * 1000);
       } catch (err) {
         console.error("Session load failed:", err);
-        localStorage.removeItem("session_token");
         router.push("/login");
       }
     };
@@ -88,8 +79,8 @@ export default function AdminPanel() {
     };
   }, [router]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("session_token");
+  const handleLogout = async () => {
+    await fetch("/api/logout", { method: "POST", credentials: "include" });
     router.push("/login");
   };
 
