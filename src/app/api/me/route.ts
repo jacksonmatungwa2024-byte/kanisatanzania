@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import { createClient } from "@supabase/supabase-js";
 
@@ -7,21 +8,28 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
+    // 👇 Soma cookie ya session_token
+    const cookieStore = cookies();
+    const token = cookieStore.get("session_token")?.value;
+
+    if (!token) {
       return NextResponse.json({ error: "No token provided" }, { status: 401 });
     }
 
-    const token = authHeader.replace("Bearer ", "");
-    const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET!);
+    } catch (err) {
+      return NextResponse.json({ error: "Invalid or malformed token" }, { status: 401 });
+    }
 
-    // Fetch user info including metadata
+    // 👇 Fetch user info using username (since JWT has username + role)
     const { data: user, error } = await supabase
       .from("users")
-      .select("id, email, role, full_name, branch, profile_url, last_login, metadata")
-      .eq("email", decoded.email)
+      .select("id, username, email, role, full_name, branch, profile_url, last_login, metadata")
+      .eq("username", decoded.username)
       .single();
 
     if (error || !user) {
@@ -42,19 +50,9 @@ export async function GET(req: Request) {
     let allowedTabs: string[] = [];
 
     if (user.role === "admin") {
-      // Admin gets everything
       allowedTabs = [...allPanels, ...allTabIds];
-    } else if (user.role === "usher") {
-      allowedTabs = ["usher", ...(user.metadata?.allowed_tabs || [])];
-    } else if (user.role === "pastor") {
-      allowedTabs = ["pastor", ...(user.metadata?.allowed_tabs || [])];
-    } else if (user.role === "media") {
-      allowedTabs = ["media", ...(user.metadata?.allowed_tabs || [])];
-    } else if (user.role === "finance") {
-      allowedTabs = ["finance", ...(user.metadata?.allowed_tabs || [])];
     } else {
-      // fallback
-      allowedTabs = user.metadata?.allowed_tabs || [];
+      allowedTabs = [user.role, ...(user.metadata?.allowed_tabs || [])];
     }
 
     return NextResponse.json({ ...user, allowedTabs }, { status: 200 });
