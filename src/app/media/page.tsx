@@ -7,7 +7,7 @@ import UsagePanel from "../components/UsagePanel";
 import MediaProfile from "../components/MediaProfile";
 
 interface TabBase { key: string; label: string; }
-interface TabWithComponent<P = Record<string, unknown>> extends TabBase { 
+interface TabWithComponent<P = any> extends TabBase { 
   component: React.ComponentType<P>; 
 }
 
@@ -15,7 +15,7 @@ const allTabs: TabWithComponent[] = [
   { key: "media", label: "📣 Matangazo", component: MediaPanel },
   { key: "storage", label: "🖼️ Gallery", component: StoragePanel },
   { key: "usage", label: "📊 Matumizi", component: UsagePanel },
-  { key: "profile", label: "🙍‍♂️ Profile", component: MediaProfile as React.ComponentType<{ userId: number }> },
+  { key: "profile", label: "🙍‍♂️ Profile", component: MediaProfile }
 ];
 
 export default function MediaDashboard() {
