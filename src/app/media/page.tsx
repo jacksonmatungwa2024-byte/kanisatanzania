@@ -7,9 +7,11 @@ import UsagePanel from "../components/UsagePanel";
 import MediaProfile from "../components/MediaProfile";
 
 interface TabBase { key: string; label: string; }
-interface TabWithComponent<P = {}> extends TabBase { component: React.ComponentType<P>; }
+interface TabWithComponent<P = Record<string, unknown>> extends TabBase { 
+  component: React.ComponentType<P>; 
+}
 
-const allTabs: Array<TabWithComponent<any>> = [
+const allTabs: TabWithComponent[] = [
   { key: "media", label: "📣 Matangazo", component: MediaPanel },
   { key: "storage", label: "🖼️ Gallery", component: StoragePanel },
   { key: "usage", label: "📊 Matumizi", component: UsagePanel },
@@ -24,7 +26,6 @@ export default function MediaDashboard() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [hovered, setHovered] = useState(false);
 
-  // Load user & permissions via JWT
   useEffect(() => {
     const fetchUserTabs = async () => {
       const token = localStorage.getItem("session_token");
@@ -53,13 +54,12 @@ export default function MediaDashboard() {
       } else {
         const tabs = data.allowedTabs;
         setAllowedTabs(Array.isArray(tabs) ? tabs : ["media", "profile", "usage"]);
-        const lastTab = localStorage.getItem("media_active_tab") as string;
+        const lastTab = localStorage.getItem("media_active_tab") ?? "";
         setActiveTab(lastTab && tabs?.includes(lastTab) ? lastTab : (tabs?.[0] || "media"));
       }
 
       setLoading(false);
 
-      // 🔹 Auto logout after 10 mins inactivity
       let timeout: NodeJS.Timeout;
       const resetTimer = () => {
         clearTimeout(timeout);
@@ -82,7 +82,6 @@ export default function MediaDashboard() {
     fetchUserTabs();
   }, []);
 
-  // Save last active tab for non-admin
   useEffect(() => {
     if (userRole !== "admin") {
       localStorage.setItem("media_active_tab", activeTab);
@@ -140,4 +139,4 @@ export default function MediaDashboard() {
       </main>
     </div>
   );
-                }
+}
