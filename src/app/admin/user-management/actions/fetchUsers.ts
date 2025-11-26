@@ -8,11 +8,11 @@ const supabase = createClient(
 export async function fetchUsers() {
   const { data, error } = await supabase
     .from("users")
-    .select("id, email, full_name, role, metadata, active_until")
+    .select("id, username, full_name, role, metadata, active_until") // 👈 sasa username
     .order("full_name", { ascending: true });
 
   if (error) {
-    console.error(error);
+    console.error("Fetch users error:", error.message);
     return [];
   }
 
