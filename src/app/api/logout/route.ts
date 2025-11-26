@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";   // 👈 tumia hii
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -6,12 +7,13 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function POST(req: Request) {
+export async function POST() {
   try {
-    const token = req.cookies.get("session_token")?.value;
+    // 👇 tumia cookies() badala ya req.cookies
+    const cookieStore = cookies();
+    const token = cookieStore.get("session_token")?.value;
 
     if (token) {
-      // clear current_session in DB
       await supabase
         .from("users")
         .update({ current_session: null })
