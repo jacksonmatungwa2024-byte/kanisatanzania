@@ -22,9 +22,10 @@ export default function UserManagement() {
     load();
   }, []);
 
-  const handleDelete = async (userId: number) => {
+  // 🔄 Delete handler sasa inakubali id na username
+  const handleDelete = async (userId: number, username: string) => {
     setSaving(true);
-    await deleteUser(userId); // ✅ only one argument
+    await deleteUser(userId, username); // 👈 sasa tunapitisha zote
     setUsers((prev) => prev.filter((u) => u.id !== userId));
     setSaving(false);
   };
@@ -50,7 +51,7 @@ export default function UserManagement() {
       <h2>👥 User Management</h2>
       <UserList
         users={users}
-        onDelete={handleDelete}
+        onDelete={handleDelete} // 👈 sasa inapitisha id + username
         onGenerateOtp={handleGenerateOtp}
         onApprove={handleApprove}
         saving={saving}
