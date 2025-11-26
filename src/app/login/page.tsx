@@ -42,7 +42,8 @@ export default function LoginPage() {
       if (data.error) {
         setLoginMessage(`❌ ${data.error}`);
       } else {
-        localStorage.setItem("session_token", data.token);
+        // 🚫 Usihifadhi token kwenye localStorage
+        // Cookie imewekwa na backend, hivyo browser itabeba session automatically
         setLoginMessage("✅ Inakuelekeza...");
 
         setTimeout(() => {
@@ -128,4 +129,4 @@ export default function LoginPage() {
       </form>
     </div>
   );
-      }
+}
