@@ -12,7 +12,9 @@ export async function POST(req: Request) {
   try {
     const { username, password, pin } = await req.json();
 
-    // 🔑 Check constant admin PIN first
+    // **************************************
+    // 1️⃣ ADMIN PIN LOGIN (NO USERNAME NEEDED)
+    // **************************************
     if (pin) {
       const { data: adminPin } = await supabase
         .from("admin_pins")
@@ -21,80 +23,96 @@ export async function POST(req: Request) {
         .single();
 
       if (adminPin) {
-        // 🎯 Generate admin JWT directly
+        // 🔐 Create Admin session token
         const token = jwt.sign(
           { role: "admin", loginMode: "pin" },
           process.env.JWT_SECRET!,
-          { expiresIn: "1h" } // expire after 1 hour
+          { expiresIn: "2h" }
         );
 
-        const response = NextResponse.json(
-          { success: true, role: "admin", loginMode: "pin" },
-          { status: 200 }
-        );
+        // 🟢 Store session in DB
+        await supabase
+          .from("admin_pins")
+          .update({ current_session: token })
+          .eq("id", adminPin.id);
 
-        response.cookies.set("session_token", token, {
-          httpOnly: true,
-          secure: true,
-          sameSite: "strict",
-          path: "/",
-          maxAge: 60 * 60, // 1 hour
+        return NextResponse.json({
+          success: true,
+          role: "admin",
+          loginMode: "pin",
+          token,
         });
-
-        return response;
       }
     }
 
-    // 👇 Normal username/password login
+    // **************************************
+    // 2️⃣ Normal Login
+    // **************************************
     if (!username || !password) {
-      return NextResponse.json({ error: "Missing username or password" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing username or password" },
+        { status: 400 }
+      );
     }
 
     const { data: user, error } = await supabase
       .from("users")
       .select("*")
       .eq("username", username)
-      .single();
+      .maybeSingle();
 
     if (error || !user) {
-      return NextResponse.json({ error: "Akaunti haikupatikana." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Akaunti haijapatikana." },
+        { status: 400 }
+      );
     }
 
     if (!user.is_active) {
-      return NextResponse.json({ error: "Akaunti imefungwa." }, { status: 403 });
+      return NextResponse.json(
+        { error: "Akaunti imefungwa." },
+        { status: 403 }
+      );
     }
 
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
-      return NextResponse.json({ error: "Nenosiri si sahihi." }, { status: 401 });
+      return NextResponse.json(
+        { error: "Nenosiri si sahihi." },
+        { status: 401 }
+      );
     }
 
+    // **************************************
+    // 3️⃣ Generate DB session token
+    // **************************************
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
       process.env.JWT_SECRET!,
-      { expiresIn: "1h" } // expire after 1 hour
+      { expiresIn: "2h" }
     );
 
+    // **************************************
+    // 4️⃣ Save session to DB
+    // **************************************
     await supabase
       .from("users")
-      .update({ last_login: new Date().toISOString(), current_session: token })
+      .update({
+        last_login: new Date().toISOString(),
+        current_session: token,
+      })
       .eq("id", user.id);
 
-    const response = NextResponse.json(
-      { success: true, role: user.role, loginMode: "normal" },
-      { status: 200 }
-    );
-
-    response.cookies.set("session_token", token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "strict",
-      path: "/",
-      maxAge: 60 * 60, // 1 hour
+    return NextResponse.json({
+      success: true,
+      role: user.role,
+      loginMode: "normal",
+      token, // front-end stores this in localStorage
     });
-
-    return response;
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { error: `Server Error: ${err.message}` },
+      { status: 500 }
+    );
   }
 }
