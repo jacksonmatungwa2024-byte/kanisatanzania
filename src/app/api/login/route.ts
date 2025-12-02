@@ -12,9 +12,7 @@ export async function POST(req: Request) {
   try {
     const { username, password, pin } = await req.json();
 
-    // **************************************
-    // 1️⃣ ADMIN PIN LOGIN (NO USERNAME NEEDED)
-    // **************************************
+    // 1️⃣ ADMIN PIN LOGIN
     if (pin) {
       const { data: adminPin } = await supabase
         .from("admin_pins")
@@ -23,17 +21,17 @@ export async function POST(req: Request) {
         .single();
 
       if (adminPin) {
-        // 🔐 Create Admin session token
         const token = jwt.sign(
           { role: "admin", loginMode: "pin" },
           process.env.JWT_SECRET!,
           { expiresIn: "2h" }
         );
 
-        // 🟢 Store session in DB
+        // Save token in sessions array (multi-device)
+        const sessions = adminPin.sessions || [];
         await supabase
           .from("admin_pins")
-          .update({ current_session: token })
+          .update({ sessions: [...sessions, token] })
           .eq("id", adminPin.id);
 
         return NextResponse.json({
@@ -45,9 +43,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // **************************************
-    // 2️⃣ Normal Login
-    // **************************************
+    // 2️⃣ NORMAL LOGIN
     if (!username || !password) {
       return NextResponse.json(
         { error: "Missing username or password" },
@@ -83,23 +79,20 @@ export async function POST(req: Request) {
       );
     }
 
-    // **************************************
-    // 3️⃣ Generate DB session token
-    // **************************************
+    // 3️⃣ Generate token
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
       process.env.JWT_SECRET!,
       { expiresIn: "2h" }
     );
 
-    // **************************************
-    // 4️⃣ Save session to DB
-    // **************************************
+    // 4️⃣ Add token to sessions array in DB
+    const sessions = user.sessions || [];
     await supabase
       .from("users")
       .update({
         last_login: new Date().toISOString(),
-        current_session: token,
+        sessions: [...sessions, token],
       })
       .eq("id", user.id);
 
@@ -107,7 +100,7 @@ export async function POST(req: Request) {
       success: true,
       role: user.role,
       loginMode: "normal",
-      token, // front-end stores this in localStorage
+      token,
     });
   } catch (err: any) {
     return NextResponse.json(
