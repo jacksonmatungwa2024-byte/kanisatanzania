@@ -24,27 +24,34 @@ export default function Dashboard() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [toast, setToast] = useState("");
 
-  // Track token explicitly
-  const [token, setToken] = useState(localStorage.getItem("session_token"));
+  // Track token safely for client-side only
+  const [token, setToken] = useState<string | null>(null);
 
-  // LISTEN TO LOCALSTORAGE CHANGES (handles multi-user login on same device)
+  // Initialize token on client-side
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      setToken(localStorage.getItem("session_token"));
+    }
+  }, []);
+
+  // Listen to localStorage changes (multi-tab support)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
     const handleStorage = () => {
       const newToken = localStorage.getItem("session_token");
       if (newToken !== token) setToken(newToken);
     };
+
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
   }, [token]);
 
-  // SESSION CHECK & TOKEN VALIDATION
+  // Session check & token validation
   useEffect(() => {
-    const checkSession = async () => {
-      if (!token) {
-        window.location.href = "/login";
-        return;
-      }
+    if (!token) return;
 
+    const checkSession = async () => {
       try {
         const res = await fetch("/api/me", {
           method: "GET",
@@ -65,7 +72,7 @@ export default function Dashboard() {
         setLastLogin(data.last_login ? new Date(data.last_login).toLocaleString() : "");
         setAllowedTabs(data.allowedTabs || []);
 
-        // AUTO LOGOUT ON INACTIVITY
+        // Auto logout on inactivity
         let idleTimer: NodeJS.Timeout;
         const resetIdleTimer = () => {
           clearTimeout(idleTimer);
@@ -77,7 +84,7 @@ export default function Dashboard() {
             });
             localStorage.removeItem("session_token");
             window.location.href = "/login";
-          }, 30 * 60 * 1000);
+          }, 30 * 60 * 1000); // 30 min
         };
 
         ["mousemove", "keydown", "click", "scroll"].forEach(event =>
@@ -100,8 +107,10 @@ export default function Dashboard() {
     checkSession();
   }, [token]);
 
-  // NETWORK STATUS
+  // Network status
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
     const online = () => {
       setToast("🤗 Umerudi online!");
       setTimeout(() => setToast(""), 4000);
@@ -110,6 +119,7 @@ export default function Dashboard() {
       setToast("😞 Umebakia offline.");
       setTimeout(() => setToast(""), 4000);
     };
+
     window.addEventListener("online", online);
     window.addEventListener("offline", offline);
     return () => {
@@ -118,7 +128,7 @@ export default function Dashboard() {
     };
   }, []);
 
-  // PANEL NAVIGATION
+  // Panel navigation
   const goToTab = (tabId: string, page: string) => {
     if (!allowedTabs.includes(tabId)) {
       setStatusLight("red");
@@ -130,14 +140,14 @@ export default function Dashboard() {
     window.location.href = page;
   };
 
-  // AUDIO TOGGLE
+  // Audio toggle
   const toggleAudio = () => {
     if (!audioRef.current) return;
     audioPlaying ? audioRef.current.pause() : audioRef.current.play();
     setAudioPlaying(!audioPlaying);
   };
 
-  // LOGOUT — clear local + DB session
+  // Logout
   const handleLogout = async () => {
     if (token) {
       await fetch("/api/logout", {
@@ -174,21 +184,11 @@ export default function Dashboard() {
       <div className={`status-indicator ${statusLight}`}>{statusText}</div>
 
       <div className="panel-links">
-        {allowedTabs.includes("admin") && (
-          <div onClick={() => goToTab("admin", "/admin")}>Admin</div>
-        )}
-        {allowedTabs.includes("usher") && (
-          <div onClick={() => goToTab("usher", "/usher")}>Mhudumu</div>
-        )}
-        {allowedTabs.includes("pastor") && (
-          <div onClick={() => goToTab("pastor", "/pastor")}>Mchungaji</div>
-        )}
-        {allowedTabs.includes("media") && (
-          <div onClick={() => goToTab("media", "/media")}>Media</div>
-        )}
-        {allowedTabs.includes("finance") && (
-          <div onClick={() => goToTab("finance", "/finance")}>Fedha</div>
-        )}
+        {allowedTabs.includes("admin") && <div onClick={() => goToTab("admin", "/admin")}>Admin</div>}
+        {allowedTabs.includes("usher") && <div onClick={() => goToTab("usher", "/usher")}>Mhudumu</div>}
+        {allowedTabs.includes("pastor") && <div onClick={() => goToTab("pastor", "/pastor")}>Mchungaji</div>}
+        {allowedTabs.includes("media") && <div onClick={() => goToTab("media", "/media")}>Media</div>}
+        {allowedTabs.includes("finance") && <div onClick={() => goToTab("finance", "/finance")}>Fedha</div>}
       </div>
 
       <button onClick={handleLogout} className="logout-btn">
