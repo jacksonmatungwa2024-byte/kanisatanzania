@@ -17,19 +17,27 @@ export async function POST(req: Request) {
 
     const token = auth.split(" ")[1];
 
-    // ❗ Clear current_session from DB
-    const { data, error } = await supabase
+    // 🔍 Fetch user whose sessions array contains this token
+    const { data: user, error: fetchError } = await supabase
       .from("users")
-      .update({ current_session: null })
-      .eq("current_session", token)
-      .select("id, username");
+      .select("id, sessions")
+      .contains("sessions", [token])
+      .maybeSingle();
 
-    if (error) {
-      return NextResponse.json({ error: "Failed to logout" }, { status: 500 });
+    if (fetchError || !user) {
+      return NextResponse.json({ error: "Session not found or already logged out" }, { status: 404 });
     }
 
-    if (!data || data.length === 0) {
-      return NextResponse.json({ error: "Session not found or already logged out" }, { status: 404 });
+    // ✅ Remove the token from sessions array
+    const updatedSessions = (user.sessions || []).filter((t: string) => t !== token);
+
+    const { error: updateError } = await supabase
+      .from("users")
+      .update({ sessions: updatedSessions })
+      .eq("id", user.id);
+
+    if (updateError) {
+      return NextResponse.json({ error: "Failed to logout" }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, message: "Logged out successfully" }, { status: 200 });
