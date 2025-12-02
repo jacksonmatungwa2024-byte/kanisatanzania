@@ -18,12 +18,21 @@ export async function POST(req: Request) {
     const token = auth.split(" ")[1];
 
     // ❗ Clear current_session from DB
-    await supabase
+    const { data, error } = await supabase
       .from("users")
       .update({ current_session: null })
-      .eq("current_session", token);
+      .eq("current_session", token)
+      .select("id, username");
 
-    return NextResponse.json({ success: true }, { status: 200 });
+    if (error) {
+      return NextResponse.json({ error: "Failed to logout" }, { status: 500 });
+    }
+
+    if (!data || data.length === 0) {
+      return NextResponse.json({ error: "Session not found or already logged out" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, message: "Logged out successfully" }, { status: 200 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
