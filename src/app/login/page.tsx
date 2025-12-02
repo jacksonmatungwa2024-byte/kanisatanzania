@@ -10,14 +10,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [loginMessage, setLoginMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showPin, setShowPin] = useState(false);
   const [toast, setToast] = useState("");
 
-  // 👇 Network status listener
+  // Network status watcher
   useEffect(() => {
     initNetworkStatus((status) => {
       setToast(status);
-      setTimeout(() => setToast(""), 4000); // auto-hide after 4s
+      setTimeout(() => setToast(""), 4000);
     });
   }, []);
 
@@ -29,32 +28,27 @@ export default function LoginPage() {
     const form = e.target as HTMLFormElement;
     const username = form.username.value.trim();
     const password = form.password.value.trim();
-    const pin = form.pin.value.trim();
 
     try {
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, pin }),
+        body: JSON.stringify({ username, password }),
       });
 
       const data = await res.json();
+
       if (data.error) {
         setLoginMessage(`❌ ${data.error}`);
       } else {
-        // 🚫 Usihifadhi token kwenye localStorage
-        // Cookie imewekwa na backend, hivyo browser itabeba session automatically
+        // 🟢 SAVE NEW SESSION TOKEN IN localStorage
+        localStorage.setItem("session_token", data.token);
+
         setLoginMessage("✅ Inakuelekeza...");
 
         setTimeout(() => {
-          if (data.role === "admin" && data.loginMode === "pin") {
-            const choice = confirm("Umeingia kwa PIN. Unataka kwenda Admin au Home?");
-            if (choice) router.push("/admin");
-            else router.push("/home");
-          } else {
-            router.push("/home");
-          }
-        }, 900);
+          router.push("/home");
+        }, 700);
       }
     } catch (err: any) {
       setLoginMessage("❌ Hitilafu ya mtandao: " + err.message);
@@ -65,7 +59,6 @@ export default function LoginPage() {
 
   return (
     <div className="login-wrapper">
-      {/* Toast popup */}
       {toast && <div className="toast">{toast}</div>}
 
       <form className="login-box" onSubmit={handleSubmit}>
@@ -73,7 +66,12 @@ export default function LoginPage() {
         <p>Ingia kwenye akaunti yako</p>
 
         <label>Jina la Mtumiaji</label>
-        <input type="text" name="username" placeholder="Weka username" required />
+        <input
+          type="text"
+          name="username"
+          placeholder="Weka username"
+          required
+        />
 
         <label>Nenosiri</label>
         <div className="password-wrapper">
@@ -83,20 +81,8 @@ export default function LoginPage() {
             placeholder="Weka nenosiri"
             required
           />
-          <span onClick={() => setShowPassword((p) => !p)}>
+          <span onClick={() => setShowPassword(!showPassword)}>
             {showPassword ? "🙈" : "👁️"}
-          </span>
-        </div>
-
-        <label>PIN ya Admin (hiari)</label>
-        <div className="password-wrapper">
-          <input
-            type={showPin ? "text" : "password"}
-            name="pin"
-            placeholder="PIN ya admin"
-          />
-          <span onClick={() => setShowPin((p) => !p)}>
-            {showPin ? "🙈" : "👁️"}
           </span>
         </div>
 
