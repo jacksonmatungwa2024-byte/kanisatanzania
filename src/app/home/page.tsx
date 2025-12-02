@@ -24,10 +24,22 @@ export default function Dashboard() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [toast, setToast] = useState("");
 
+  // Track token explicitly
+  const [token, setToken] = useState(localStorage.getItem("session_token"));
+
+  // LISTEN TO LOCALSTORAGE CHANGES (handles multi-user login on same device)
+  useEffect(() => {
+    const handleStorage = () => {
+      const newToken = localStorage.getItem("session_token");
+      if (newToken !== token) setToken(newToken);
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [token]);
+
   // SESSION CHECK & TOKEN VALIDATION
   useEffect(() => {
     const checkSession = async () => {
-      const token = localStorage.getItem("session_token");
       if (!token) {
         window.location.href = "/login";
         return;
@@ -40,7 +52,6 @@ export default function Dashboard() {
         });
         const data = await res.json();
 
-        // Token invalid or expired → force logout
         if (data.error) {
           localStorage.removeItem("session_token");
           window.location.href = "/login";
@@ -54,7 +65,7 @@ export default function Dashboard() {
         setLastLogin(data.last_login ? new Date(data.last_login).toLocaleString() : "");
         setAllowedTabs(data.allowedTabs || []);
 
-        // AUTO LOGOUT ON INACTIVITY OR TOKEN CHANGE
+        // AUTO LOGOUT ON INACTIVITY
         let idleTimer: NodeJS.Timeout;
         const resetIdleTimer = () => {
           clearTimeout(idleTimer);
@@ -69,7 +80,6 @@ export default function Dashboard() {
           }, 30 * 60 * 1000);
         };
 
-        // reset timer on user interaction
         ["mousemove", "keydown", "click", "scroll"].forEach(event =>
           window.addEventListener(event, resetIdleTimer)
         );
@@ -88,7 +98,7 @@ export default function Dashboard() {
     };
 
     checkSession();
-  }, []);
+  }, [token]);
 
   // NETWORK STATUS
   useEffect(() => {
@@ -129,7 +139,6 @@ export default function Dashboard() {
 
   // LOGOUT — clear local + DB session
   const handleLogout = async () => {
-    const token = localStorage.getItem("session_token");
     if (token) {
       await fetch("/api/logout", {
         method: "POST",
@@ -137,6 +146,7 @@ export default function Dashboard() {
       });
     }
     localStorage.removeItem("session_token");
+    setToken(null);
     window.location.href = "/login";
   };
 
