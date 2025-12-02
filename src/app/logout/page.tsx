@@ -4,15 +4,27 @@ import { useEffect } from "react";
 
 export default function Logout() {
   useEffect(() => {
-    // call backend logout to clear cookie + DB session
-    fetch("/api/logout", { method: "POST", credentials: "include" });
+    const token = localStorage.getItem("session_token");
+
+    if (token) {
+      // Call backend to clear DB session
+      fetch("/api/logout", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    }
+
+    // Remove token from localStorage
+    localStorage.removeItem("session_token");
   }, []);
 
   return (
     <div style={{ textAlign: "center", padding: "50px" }}>
       <h1>👋 Umetoka</h1>
       <p>
-        Cookie yako ya ufikiaji imefutwa. Tafadhali anza tena safari yako kutoka
+        Akaunti yako imefungwa. Tafadhali anza tena safari yako kutoka
         ukurasa wa nyumbani.
       </p>
       <a href="/" style={{ color: "blue", textDecoration: "underline" }}>
