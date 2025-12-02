@@ -11,8 +11,7 @@ export async function GET(req: Request) {
   try {
     // 🔐 Read token from Authorization Header
     const authHeader = req.headers.get("authorization");
-
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Token missing" }, { status: 401 });
     }
 
@@ -26,10 +25,13 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Token invalid" }, { status: 401 });
     }
 
-    // 🔍 Fetch user
+    // 🔍 Fetch user by ID
     const { data: user, error } = await supabase
       .from("users")
-      .select("id, username, email, role, full_name, branch, profile_url, last_login, current_session, metadata")
+      .select(`
+        id, username, email, role, full_name, branch,
+        profile_url, last_login, current_session, metadata
+      `)
       .eq("id", decoded.id)
       .single();
 
@@ -37,48 +39,40 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // ❗ HARD CHECK: token must match DB session
+    // ❗ Ensure token matches current session
     if (user.current_session !== token) {
       return NextResponse.json({ error: "Session expired, please login again" }, { status: 401 });
     }
 
-    // Permissions handling
+    // ⚡ Determine allowed tabs
     const allPanels = ["admin", "usher", "pastor", "media", "finance"];
     const allTabIds = [
-      "tabManager", "reactivation", "users", "registration", "data", "matangazo",
-      "storage", "settings", "profile",
-      "home", "usajili", "mafunzo", "reports", "messages", "picha",
-      "muumini", "mahadhurio", "wokovu", "ushuhuda",
-      "dashboard", "bajeti", "summary", "approval", "approved", "rejected",
-      "media", "usage", "finance", "michango", "reports_finance"
+      "tabManager","reactivation","users","registration","data","matangazo",
+      "storage","settings","profile","home","usajili","mafunzo","reports","messages",
+      "picha","muumini","mahadhurio","wokovu","ushuhuda","dashboard","bajeti",
+      "summary","approval","approved","rejected","media","usage","finance","michango",
+      "reports_finance"
     ];
 
     let allowedTabs: string[] = [];
-
-    // Admin = full access
     if (user.role === "admin") {
       allowedTabs = [...allPanels, ...allTabIds];
     } else {
-      allowedTabs = [
-        user.role,
-        ...(user.metadata?.allowed_tabs || []),
-      ];
+      allowedTabs = [user.role, ...(user.metadata?.allowed_tabs || [])];
     }
 
-    return NextResponse.json(
-      {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        full_name: user.full_name,
-        branch: user.branch,
-        profile_url: user.profile_url,
-        last_login: user.last_login,
-        allowedTabs,
-      },
-      { status: 200 }
-    );
+    return NextResponse.json({
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      full_name: user.full_name,
+      branch: user.branch,
+      profile_url: user.profile_url,
+      last_login: user.last_login,
+      allowedTabs,
+    }, { status: 200 });
+
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
