@@ -2,8 +2,6 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import "./Dashboard.css";
-import { initNetworkStatus } from "../../utils/networkStatus";
-import { usePermissions } from "@/utils/usePermissions";
 
 const roleLabels: Record<string, string> = {
   admin: "Admin",
@@ -26,88 +24,108 @@ export default function Dashboard() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [toast, setToast] = useState("");
 
-  // 🔒 Session check using cookie
+  // LOGIN SESSION CHECK — USING TOKEN FROM TABLE
   useEffect(() => {
-    const checkSession = async () => {
+    const loadSession = async () => {
+      const token = localStorage.getItem("session_token");
+
+      if (!token) {
+        window.location.href = "/login";
+        return;
+      }
+
       try {
-        const res = await fetch("/api/me", { credentials: "include" }); // 👈 cookie auto-sent
+        const res = await fetch("/api/me", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,  // 👈 send token
+          },
+        });
+
         const data = await res.json();
 
         if (data.error) {
+          localStorage.removeItem("session_token");
           window.location.href = "/login";
           return;
         }
 
+        // Fill UI
         setRole(data.role);
         setFullName(data.full_name || "");
         setBranch(data.branch || "");
         setProfileUrl(data.profile_url || "");
-        setLastLogin(data.last_login ? new Date(data.last_login).toLocaleString() : "");
+        setLastLogin(
+          data.last_login ? new Date(data.last_login).toLocaleString() : ""
+        );
         setAllowedTabs(data.allowedTabs || []);
 
-        // 🔹 Auto logout after 30 mins inactivity
-        const timeout = setTimeout(async () => {
+        // Auto logout after 30 mins
+        const timeout = setTimeout(() => {
           alert("Umeachwa bila shughuli. Tafadhali ingia tena.");
-          await fetch("/api/logout", { method: "POST", credentials: "include" });
+          localStorage.removeItem("session_token");
+          fetch("/api/logout", { method: "POST" });
           window.location.href = "/login";
         }, 30 * 60 * 1000);
 
         return () => clearTimeout(timeout);
-      } catch (err) {
-        console.error("Session load failed:", err);
+      } catch {
+        localStorage.removeItem("session_token");
         window.location.href = "/login";
       }
     };
 
-    checkSession();
+    loadSession();
   }, []);
 
-  // 🌐 Network status listener
+  // 🌐 Network Status
   useEffect(() => {
-    const handleOnline = () => {
+    const online = () => {
       setToast("🤗 Umerudi online!");
       setTimeout(() => setToast(""), 4000);
     };
-    const handleOffline = () => {
-      setToast("😞 Umepoteza internet, uko offline.");
+    const offline = () => {
+      setToast("😞 Umebakia offline.");
       setTimeout(() => setToast(""), 4000);
     };
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
+    window.addEventListener("online", online);
+    window.addEventListener("offline", offline);
     return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", online);
+      window.removeEventListener("offline", offline);
     };
   }, []);
 
-  const handleClick = (tabId: string, page: string) => {
+  // Navigation with Permissions
+  const goToTab = (tabId: string, page: string) => {
     if (!allowedTabs.includes(tabId)) {
       setStatusLight("red");
       setStatusText("🚫 Huna ruhusa ya kuingia sehemu hii.");
       return;
     }
     setStatusLight("green");
-    setStatusText(`✅ Unaelekezwa kwenye ${tabId}...`);
+    setStatusText(`⏳ Inaelekeza kwenye ${roleLabels[tabId] || tabId}...`);
     window.location.href = page;
   };
 
-  const handleAudioToggle = () => {
-    if (audioRef.current) {
-      if (audioPlaying) {
-        audioRef.current.pause();
-        setAudioPlaying(false);
-      } else {
-        audioRef.current.play();
-        setAudioPlaying(true);
-      }
-    }
+  // Audio Button
+  const toggleAudio = () => {
+    if (!audioRef.current) return;
+    audioPlaying ? audioRef.current.pause() : audioRef.current.play();
+    setAudioPlaying(!audioPlaying);
   };
 
+  // LOGOUT
   const handleLogout = async () => {
-    await fetch("/api/logout", { method: "POST", credentials: "include" }); // 👈 clear cookie + DB
-    window.location.href = "/logout";
+    const token = localStorage.getItem("session_token");
+
+    await fetch("/api/logout", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    localStorage.removeItem("session_token");
+    window.location.href = "/login";
   };
 
   return (
@@ -115,14 +133,19 @@ export default function Dashboard() {
       {toast && <div className="toast">{toast}</div>}
 
       <div className="theme-verse">“Nuru yako itangaze gizani.” — Isaya 60:1</div>
-      <h2>Karibu {roleLabels[role] || ""} {fullName}</h2>
+
+      <h2>
+        Karibu {roleLabels[role] || ""} {fullName}
+      </h2>
+
       {branch && <div className="info-block">📍 Tawi: {branch}</div>}
-      {lastLogin && <div className="info-block">🕒 Ilipoingia mwisho: {lastLogin}</div>}
+      {lastLogin && <div className="info-block">🕒 Mwisho kuingia: {lastLogin}</div>}
       {profileUrl && <img src={profileUrl} alt="Profile" className="profile-img" />}
 
-      <button onClick={handleAudioToggle}>
-        🔊 {audioPlaying ? "Pause Theme" : "Play Theme"}
+      <button onClick={toggleAudio}>
+        🔊 {audioPlaying ? "Sitisha" : "Cheza Muziki"}
       </button>
+
       <audio ref={audioRef} loop>
         <source src="/ana.mp3" type="audio/mp3" />
       </audio>
@@ -133,19 +156,19 @@ export default function Dashboard() {
 
       <div className="panel-links">
         {allowedTabs.includes("admin") && (
-          <div onClick={() => handleClick("admin", "/admin")}>Admin Panel</div>
+          <div onClick={() => goToTab("admin", "/admin")}>Admin</div>
         )}
         {allowedTabs.includes("usher") && (
-          <div onClick={() => handleClick("usher", "/usher")}>Usher Panel</div>
+          <div onClick={() => goToTab("usher", "/usher")}>Mhudumu</div>
         )}
         {allowedTabs.includes("pastor") && (
-          <div onClick={() => handleClick("pastor", "/pastor")}>Pastor Panel</div>
+          <div onClick={() => goToTab("pastor", "/pastor")}>Mchungaji</div>
         )}
         {allowedTabs.includes("media") && (
-          <div onClick={() => handleClick("media", "/media")}>Media Team</div>
+          <div onClick={() => goToTab("media", "/media")}>Media</div>
         )}
         {allowedTabs.includes("finance") && (
-          <div onClick={() => handleClick("finance", "/finance")}>Finance</div>
+          <div onClick={() => goToTab("finance", "/finance")}>Fedha</div>
         )}
       </div>
 
@@ -154,4 +177,4 @@ export default function Dashboard() {
       </button>
     </div>
   );
-          }
+}
