@@ -9,7 +9,6 @@ const supabase = createClient(
 
 export async function GET(req: Request) {
   try {
-    // 🔐 Read token from Authorization Header
     const authHeader = req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Token missing" }, { status: 401 });
@@ -17,7 +16,6 @@ export async function GET(req: Request) {
 
     const token = authHeader.split(" ")[1];
 
-    // 🔍 Validate JWT
     let decoded: any;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET!);
@@ -25,12 +23,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Token invalid" }, { status: 401 });
     }
 
-    // 🔍 Fetch user by ID
     const { data: user, error } = await supabase
       .from("users")
       .select(`
         id, username, email, role, full_name, branch,
-        profile_url, last_login, current_session, metadata
+        profile_url, last_login, sessions, metadata
       `)
       .eq("id", decoded.id)
       .single();
@@ -39,12 +36,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // ❗ Force single session: if token differs, expire session
-    if (user.current_session !== token) {
+    // ✅ Multi-device session check
+    if (!user.sessions || !user.sessions.includes(token)) {
       return NextResponse.json({ error: "Session expired, please login again" }, { status: 401 });
     }
 
-    // ⚡ Determine allowed tabs
     const allPanels = ["admin", "usher", "pastor", "media", "finance"];
     const allTabIds = [
       "tabManager","reactivation","users","registration","data","matangazo",
