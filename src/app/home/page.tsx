@@ -24,11 +24,10 @@ export default function Dashboard() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [toast, setToast] = useState("");
 
-  // LOGIN SESSION CHECK — USING TOKEN FROM TABLE
+  // SESSION CHECK & TOKEN VALIDATION
   useEffect(() => {
-    const loadSession = async () => {
+    const checkSession = async () => {
       const token = localStorage.getItem("session_token");
-
       if (!token) {
         window.location.href = "/login";
         return;
@@ -37,48 +36,61 @@ export default function Dashboard() {
       try {
         const res = await fetch("/api/me", {
           method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,  // 👈 send token
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
-
         const data = await res.json();
 
+        // Token invalid or expired → force logout
         if (data.error) {
           localStorage.removeItem("session_token");
           window.location.href = "/login";
           return;
         }
 
-        // Fill UI
         setRole(data.role);
         setFullName(data.full_name || "");
         setBranch(data.branch || "");
         setProfileUrl(data.profile_url || "");
-        setLastLogin(
-          data.last_login ? new Date(data.last_login).toLocaleString() : ""
-        );
+        setLastLogin(data.last_login ? new Date(data.last_login).toLocaleString() : "");
         setAllowedTabs(data.allowedTabs || []);
 
-        // Auto logout after 30 mins
-        const timeout = setTimeout(() => {
-          alert("Umeachwa bila shughuli. Tafadhali ingia tena.");
-          localStorage.removeItem("session_token");
-          fetch("/api/logout", { method: "POST" });
-          window.location.href = "/login";
-        }, 30 * 60 * 1000);
+        // AUTO LOGOUT ON INACTIVITY OR TOKEN CHANGE
+        let idleTimer: NodeJS.Timeout;
+        const resetIdleTimer = () => {
+          clearTimeout(idleTimer);
+          idleTimer = setTimeout(async () => {
+            alert("Umeachwa bila shughuli. Tafadhali ingia tena.");
+            await fetch("/api/logout", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            localStorage.removeItem("session_token");
+            window.location.href = "/login";
+          }, 30 * 60 * 1000);
+        };
 
-        return () => clearTimeout(timeout);
+        // reset timer on user interaction
+        ["mousemove", "keydown", "click", "scroll"].forEach(event =>
+          window.addEventListener(event, resetIdleTimer)
+        );
+        resetIdleTimer();
+
+        return () => {
+          clearTimeout(idleTimer);
+          ["mousemove", "keydown", "click", "scroll"].forEach(event =>
+            window.removeEventListener(event, resetIdleTimer)
+          );
+        };
       } catch {
         localStorage.removeItem("session_token");
         window.location.href = "/login";
       }
     };
 
-    loadSession();
+    checkSession();
   }, []);
 
-  // 🌐 Network Status
+  // NETWORK STATUS
   useEffect(() => {
     const online = () => {
       setToast("🤗 Umerudi online!");
@@ -96,7 +108,7 @@ export default function Dashboard() {
     };
   }, []);
 
-  // Navigation with Permissions
+  // PANEL NAVIGATION
   const goToTab = (tabId: string, page: string) => {
     if (!allowedTabs.includes(tabId)) {
       setStatusLight("red");
@@ -108,22 +120,22 @@ export default function Dashboard() {
     window.location.href = page;
   };
 
-  // Audio Button
+  // AUDIO TOGGLE
   const toggleAudio = () => {
     if (!audioRef.current) return;
     audioPlaying ? audioRef.current.pause() : audioRef.current.play();
     setAudioPlaying(!audioPlaying);
   };
 
-  // LOGOUT
+  // LOGOUT — clear local + DB session
   const handleLogout = async () => {
     const token = localStorage.getItem("session_token");
-
-    await fetch("/api/logout", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
+    if (token) {
+      await fetch("/api/logout", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    }
     localStorage.removeItem("session_token");
     window.location.href = "/login";
   };
@@ -131,7 +143,6 @@ export default function Dashboard() {
   return (
     <div className="dashboard-container">
       {toast && <div className="toast">{toast}</div>}
-
       <div className="theme-verse">“Nuru yako itangaze gizani.” — Isaya 60:1</div>
 
       <h2>
@@ -150,9 +161,7 @@ export default function Dashboard() {
         <source src="/ana.mp3" type="audio/mp3" />
       </audio>
 
-      <div className={`status-indicator ${statusLight}`}>
-        {statusText}
-      </div>
+      <div className={`status-indicator ${statusLight}`}>{statusText}</div>
 
       <div className="panel-links">
         {allowedTabs.includes("admin") && (
