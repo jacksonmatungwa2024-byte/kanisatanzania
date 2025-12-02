@@ -39,7 +39,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // ❗ Ensure token matches current session
+    // ❗ Force single session: if token differs, expire session
     if (user.current_session !== token) {
       return NextResponse.json({ error: "Session expired, please login again" }, { status: 401 });
     }
