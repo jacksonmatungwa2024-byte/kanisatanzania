@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { createClient } from "@supabase/supabase-js";
 
@@ -8,104 +7,73 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function POST(req: Request) {
+export async function GET(req: Request) {
   try {
-    const { username, password, pin } = await req.json();
-
-    // 1️⃣ ADMIN PIN LOGIN
-    if (pin) {
-      const { data: adminPin } = await supabase
-        .from("admin_pins")
-        .select("*")
-        .eq("pin", pin)
-        .single();
-
-      if (adminPin) {
-        const token = jwt.sign(
-          { role: "admin", loginMode: "pin" },
-          process.env.JWT_SECRET!,
-          { expiresIn: "2h" }
-        );
-
-        // Save token in sessions array (multi-device)
-        const sessions = adminPin.sessions || [];
-        await supabase
-          .from("admin_pins")
-          .update({ sessions: [...sessions, token] })
-          .eq("id", adminPin.id);
-
-        return NextResponse.json({
-          success: true,
-          role: "admin",
-          loginMode: "pin",
-          token,
-        });
-      }
+    // 🔐 Read token from Authorization Header
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Token missing" }, { status: 401 });
     }
 
-    // 2️⃣ NORMAL LOGIN
-    if (!username || !password) {
-      return NextResponse.json(
-        { error: "Missing username or password" },
-        { status: 400 }
-      );
+    const token = authHeader.split(" ")[1];
+
+    // 🔍 Validate JWT
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET!);
+    } catch {
+      return NextResponse.json({ error: "Token invalid" }, { status: 401 });
     }
 
+    // 🔍 Fetch user by ID
     const { data: user, error } = await supabase
       .from("users")
-      .select("*")
-      .eq("username", username)
-      .maybeSingle();
+      .select(`
+        id, username, email, role, full_name, branch,
+        profile_url, last_login, sessions, metadata
+      `)
+      .eq("id", decoded.id)
+      .single();
 
     if (error || !user) {
-      return NextResponse.json(
-        { error: "Akaunti haijapatikana." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    if (!user.is_active) {
-      return NextResponse.json(
-        { error: "Akaunti imefungwa." },
-        { status: 403 }
-      );
+    // ❗ Ensure token exists in sessions array (multi-device)
+    if (!user.sessions || !user.sessions.includes(token)) {
+      return NextResponse.json({ error: "Session expired, please login again" }, { status: 401 });
     }
 
-    const validPassword = await bcrypt.compare(password, user.password_hash);
-    if (!validPassword) {
-      return NextResponse.json(
-        { error: "Nenosiri si sahihi." },
-        { status: 401 }
-      );
+    // ⚡ Determine allowed tabs
+    const allPanels = ["admin", "usher", "pastor", "media", "finance"];
+    const allTabIds = [
+      "tabManager","reactivation","users","registration","data","matangazo",
+      "storage","settings","profile","home","usajili","mafunzo","reports","messages",
+      "picha","muumini","mahadhurio","wokovu","ushuhuda","dashboard","bajeti",
+      "summary","approval","approved","rejected","media","usage","finance","michango",
+      "reports_finance"
+    ];
+
+    let allowedTabs: string[] = [];
+    if (user.role === "admin") {
+      allowedTabs = [...allPanels, ...allTabIds];
+    } else {
+      allowedTabs = [user.role, ...(user.metadata?.allowed_tabs || [])];
     }
-
-    // 3️⃣ Generate token
-    const token = jwt.sign(
-      { id: user.id, username: user.username, role: user.role },
-      process.env.JWT_SECRET!,
-      { expiresIn: "2h" }
-    );
-
-    // 4️⃣ Add token to sessions array in DB
-    const sessions = user.sessions || [];
-    await supabase
-      .from("users")
-      .update({
-        last_login: new Date().toISOString(),
-        sessions: [...sessions, token],
-      })
-      .eq("id", user.id);
 
     return NextResponse.json({
-      success: true,
+      id: user.id,
+      username: user.username,
+      email: user.email,
       role: user.role,
-      loginMode: "normal",
-      token,
-    });
+      full_name: user.full_name,
+      branch: user.branch,
+      profile_url: user.profile_url,
+      last_login: user.last_login,
+      allowedTabs,
+    }, { status: 200 });
+
   } catch (err: any) {
-    return NextResponse.json(
-      { error: `Server Error: ${err.message}` },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
