@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -26,8 +27,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Password verification
-    const isMatch = password === user.password_hash; // Replace with bcrypt if needed
+    // 🔍 Password verification (FIXED)
+    const isMatch = await bcrypt.compare(password, user.password_hash);
 
     if (!isMatch) {
       return NextResponse.json({ error: "Wrong password" }, { status: 401 });
