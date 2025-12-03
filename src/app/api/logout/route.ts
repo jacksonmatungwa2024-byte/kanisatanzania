@@ -8,19 +8,17 @@ const supabase = createClient(
 
 export async function POST(req: Request) {
   try {
-    // 🔐 Get token from Authorization header
     const auth = req.headers.get("authorization");
-
     if (!auth || !auth.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Token missing" }, { status: 401 });
     }
 
     const token = auth.split(" ")[1];
 
-    // 🔍 Fetch user whose sessions array contains this token
+    // 🔍 Tafuta user aliyepo na token hii
     const { data: user, error: fetchError } = await supabase
       .from("users")
-      .select("id, sessions")
+      .select("id")
       .contains("sessions", [token])
       .maybeSingle();
 
@@ -28,19 +26,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Session not found or already logged out" }, { status: 404 });
     }
 
-    // ✅ Remove the token from sessions array
-    const updatedSessions = (user.sessions || []).filter((t: string) => t !== token);
-
+    // ✅ Ondoa all sessions
     const { error: updateError } = await supabase
       .from("users")
-      .update({ sessions: updatedSessions })
+      .update({ sessions: [] })
       .eq("id", user.id);
 
     if (updateError) {
       return NextResponse.json({ error: "Failed to logout" }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, message: "Logged out successfully" }, { status: 200 });
+    return NextResponse.json({ success: true, message: "Logged out from all devices" }, { status: 200 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
