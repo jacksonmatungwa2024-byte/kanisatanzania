@@ -24,34 +24,12 @@ export default function Dashboard() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [toast, setToast] = useState("");
 
-  // Track token safely for client-side only
-  const [token, setToken] = useState<string | null>(null);
-
-  // Initialize token on client-side
+  // Fetch user info on mount
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setToken(localStorage.getItem("session_token"));
-    }
-  }, []);
-
-  // Listen to localStorage changes (multi-tab support)
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const handleStorage = () => {
-      const newToken = localStorage.getItem("session_token");
-      if (newToken !== token) setToken(newToken);
-    };
-
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, [token]);
-
-  // Session check & token validation
-  useEffect(() => {
+    const token = localStorage.getItem("session_token");
     if (!token) return;
 
-    const checkSession = async () => {
+    const fetchData = async () => {
       try {
         const res = await fetch("/api/me", {
           method: "GET",
@@ -60,7 +38,8 @@ export default function Dashboard() {
         const data = await res.json();
 
         if (data.error) {
-          localStorage.removeItem("session_token");
+          localStorage.clear();
+          sessionStorage.clear();
           window.location.href = "/login";
           return;
         }
@@ -71,46 +50,51 @@ export default function Dashboard() {
         setProfileUrl(data.profile_url || "");
         setLastLogin(data.last_login ? new Date(data.last_login).toLocaleString() : "");
         setAllowedTabs(data.allowedTabs || []);
-
-        // Auto logout on inactivity
-        let idleTimer: NodeJS.Timeout;
-        const resetIdleTimer = () => {
-          clearTimeout(idleTimer);
-          idleTimer = setTimeout(async () => {
-            alert("Umeachwa bila shughuli. Tafadhali ingia tena.");
-            await fetch("/api/logout", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            localStorage.removeItem("session_token");
-            window.location.href = "/login";
-          }, 30 * 60 * 1000); // 30 min
-        };
-
-        ["mousemove", "keydown", "click", "scroll"].forEach(event =>
-          window.addEventListener(event, resetIdleTimer)
-        );
-        resetIdleTimer();
-
-        return () => {
-          clearTimeout(idleTimer);
-          ["mousemove", "keydown", "click", "scroll"].forEach(event =>
-            window.removeEventListener(event, resetIdleTimer)
-          );
-        };
       } catch {
-        localStorage.removeItem("session_token");
+        localStorage.clear();
+        sessionStorage.clear();
         window.location.href = "/login";
       }
     };
 
-    checkSession();
-  }, [token]);
+    fetchData();
+  }, []);
+
+  // Auto logout on inactivity
+  useEffect(() => {
+    const token = localStorage.getItem("session_token");
+    if (!token) return;
+
+    let idleTimer: NodeJS.Timeout;
+    const resetIdleTimer = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(async () => {
+        alert("Umeachwa bila shughuli. Tafadhali ingia tena.");
+        await fetch("/api/logout", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = "/login";
+      }, 30 * 60 * 1000);
+    };
+
+    ["mousemove", "keydown", "click", "scroll"].forEach(event =>
+      window.addEventListener(event, resetIdleTimer)
+    );
+    resetIdleTimer();
+
+    return () => {
+      clearTimeout(idleTimer);
+      ["mousemove", "keydown", "click", "scroll"].forEach(event =>
+        window.removeEventListener(event, resetIdleTimer)
+      );
+    };
+  }, []);
 
   // Network status
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
     const online = () => {
       setToast("🤗 Umerudi online!");
       setTimeout(() => setToast(""), 4000);
@@ -128,7 +112,6 @@ export default function Dashboard() {
     };
   }, []);
 
-  // Panel navigation
   const goToTab = (tabId: string, page: string) => {
     if (!allowedTabs.includes(tabId)) {
       setStatusLight("red");
@@ -140,23 +123,19 @@ export default function Dashboard() {
     window.location.href = page;
   };
 
-  // Audio toggle
   const toggleAudio = () => {
     if (!audioRef.current) return;
     audioPlaying ? audioRef.current.pause() : audioRef.current.play();
     setAudioPlaying(!audioPlaying);
   };
 
-  // Logout
   const handleLogout = async () => {
+    const token = localStorage.getItem("session_token");
     if (token) {
-      await fetch("/api/logout", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await fetch("/api/logout", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
     }
-    localStorage.removeItem("session_token");
-    setToken(null);
+    localStorage.clear();
+    sessionStorage.clear();
     window.location.href = "/login";
   };
 
@@ -196,4 +175,4 @@ export default function Dashboard() {
       </button>
     </div>
   );
-}
+      }
