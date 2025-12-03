@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import "./Dashboard.css";
 
 const roleLabels: Record<string, string> = {
@@ -10,6 +11,61 @@ const roleLabels: Record<string, string> = {
   media: "Media",
   finance: "Fedha",
 };
+
+// ProtectedLayout component
+function ProtectedLayout({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const storedToken = localStorage.getItem("session_token");
+    setToken(storedToken);
+
+    if (!storedToken) {
+      router.replace("/login");
+      return;
+    }
+
+    const verifyToken = async () => {
+      try {
+        const res = await fetch("/api/me", {
+          method: "GET",
+          headers: { Authorization: `Bearer ${storedToken}` },
+          cache: "no-store",
+        });
+
+        if (!res.ok) {
+          localStorage.clear();
+          sessionStorage.clear();
+          router.replace("/login");
+        }
+      } catch {
+        localStorage.clear();
+        sessionStorage.clear();
+        router.replace("/login");
+      }
+    };
+
+    verifyToken();
+
+    // Multi-tab logout support
+    const handleStorage = () => {
+      const newToken = localStorage.getItem("session_token");
+      if (!newToken) router.replace("/login");
+    };
+    window.addEventListener("storage", handleStorage);
+
+    // Prevent cached back
+    window.history.replaceState(null, "", window.location.href);
+
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [router]);
+
+  if (!token) return null;
+  return <>{children}</>;
+}
 
 export default function Dashboard() {
   const [role, setRole] = useState("");
@@ -24,7 +80,7 @@ export default function Dashboard() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [toast, setToast] = useState("");
 
-  // Fetch user info on mount
+  // Fetch user info
   useEffect(() => {
     const token = localStorage.getItem("session_token");
     if (!token) return;
@@ -140,39 +196,41 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="dashboard-container">
-      {toast && <div className="toast">{toast}</div>}
-      <div className="theme-verse">“Nuru yako itangaze gizani.” — Isaya 60:1</div>
+    <ProtectedLayout>
+      <div className="dashboard-container">
+        {toast && <div className="toast">{toast}</div>}
+        <div className="theme-verse">“Nuru yako itangaze gizani.” — Isaya 60:1</div>
 
-      <h2>
-        Karibu {roleLabels[role] || ""} {fullName}
-      </h2>
+        <h2>
+          Karibu {roleLabels[role] || ""} {fullName}
+        </h2>
 
-      {branch && <div className="info-block">📍 Tawi: {branch}</div>}
-      {lastLogin && <div className="info-block">🕒 Mwisho kuingia: {lastLogin}</div>}
-      {profileUrl && <img src={profileUrl} alt="Profile" className="profile-img" />}
+        {branch && <div className="info-block">📍 Tawi: {branch}</div>}
+        {lastLogin && <div className="info-block">🕒 Mwisho kuingia: {lastLogin}</div>}
+        {profileUrl && <img src={profileUrl} alt="Profile" className="profile-img" />}
 
-      <button onClick={toggleAudio}>
-        🔊 {audioPlaying ? "Sitisha" : "Cheza Muziki"}
-      </button>
+        <button onClick={toggleAudio}>
+          🔊 {audioPlaying ? "Sitisha" : "Cheza Muziki"}
+        </button>
 
-      <audio ref={audioRef} loop>
-        <source src="/ana.mp3" type="audio/mp3" />
-      </audio>
+        <audio ref={audioRef} loop>
+          <source src="/ana.mp3" type="audio/mp3" />
+        </audio>
 
-      <div className={`status-indicator ${statusLight}`}>{statusText}</div>
+        <div className={`status-indicator ${statusLight}`}>{statusText}</div>
 
-      <div className="panel-links">
-        {allowedTabs.includes("admin") && <div onClick={() => goToTab("admin", "/admin")}>Admin</div>}
-        {allowedTabs.includes("usher") && <div onClick={() => goToTab("usher", "/usher")}>Mhudumu</div>}
-        {allowedTabs.includes("pastor") && <div onClick={() => goToTab("pastor", "/pastor")}>Mchungaji</div>}
-        {allowedTabs.includes("media") && <div onClick={() => goToTab("media", "/media")}>Media</div>}
-        {allowedTabs.includes("finance") && <div onClick={() => goToTab("finance", "/finance")}>Fedha</div>}
+        <div className="panel-links">
+          {allowedTabs.includes("admin") && <div onClick={() => goToTab("admin", "/admin")}>Admin</div>}
+          {allowedTabs.includes("usher") && <div onClick={() => goToTab("usher", "/usher")}>Mhudumu</div>}
+          {allowedTabs.includes("pastor") && <div onClick={() => goToTab("pastor", "/pastor")}>Mchungaji</div>}
+          {allowedTabs.includes("media") && <div onClick={() => goToTab("media", "/media")}>Media</div>}
+          {allowedTabs.includes("finance") && <div onClick={() => goToTab("finance", "/finance")}>Fedha</div>}
+        </div>
+
+        <button onClick={handleLogout} className="logout-btn">
+          🚪 Logout
+        </button>
       </div>
-
-      <button onClick={handleLogout} className="logout-btn">
-        🚪 Logout
-      </button>
-    </div>
+    </ProtectedLayout>
   );
       }
