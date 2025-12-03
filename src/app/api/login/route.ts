@@ -7,71 +7,48 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(req: Request) {
+export async function POST(req: Request) {
   try {
-    // 🔐 Read token from Authorization Header
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Token missing" }, { status: 401 });
+    const { username, password } = await req.json();
+
+    if (!username || !password) {
+      return NextResponse.json({ error: "Missing credentials" }, { status: 400 });
     }
 
-    const token = authHeader.split(" ")[1];
-
-    // 🔍 Validate JWT
-    let decoded: any;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET!);
-    } catch {
-      return NextResponse.json({ error: "Token invalid" }, { status: 401 });
-    }
-
-    // 🔍 Fetch user by ID
+    // Find user
     const { data: user, error } = await supabase
       .from("users")
-      .select(`
-        id, username, email, role, full_name, branch,
-        profile_url, last_login, sessions, metadata
-      `)
-      .eq("id", decoded.id)
+      .select("id, username, password_hash, role, sessions")
+      .eq("username", username)
       .single();
 
     if (error || !user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // ❗ Ensure token exists in sessions array (multi-device)
-    if (!user.sessions || !user.sessions.includes(token)) {
-      return NextResponse.json({ error: "Session expired, please login again" }, { status: 401 });
+    // Password verification
+    const isMatch = password === user.password_hash; // Replace with bcrypt if needed
+
+    if (!isMatch) {
+      return NextResponse.json({ error: "Wrong password" }, { status: 401 });
     }
 
-    // ⚡ Determine allowed tabs
-    const allPanels = ["admin", "usher", "pastor", "media", "finance"];
-    const allTabIds = [
-      "tabManager","reactivation","users","registration","data","matangazo",
-      "storage","settings","profile","home","usajili","mafunzo","reports","messages",
-      "picha","muumini","mahadhurio","wokovu","ushuhuda","dashboard","bajeti",
-      "summary","approval","approved","rejected","media","usage","finance","michango",
-      "reports_finance"
-    ];
+    // Generate token
+    const token = jwt.sign(
+      { id: user.id, username: user.username },
+      process.env.JWT_SECRET!,
+      { expiresIn: "30d" }
+    );
 
-    let allowedTabs: string[] = [];
-    if (user.role === "admin") {
-      allowedTabs = [...allPanels, ...allTabIds];
-    } else {
-      allowedTabs = [user.role, ...(user.metadata?.allowed_tabs || [])];
-    }
+    // Save token in sessions
+    const updatedSessions = [...(user.sessions || []), token];
 
-    return NextResponse.json({
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      role: user.role,
-      full_name: user.full_name,
-      branch: user.branch,
-      profile_url: user.profile_url,
-      last_login: user.last_login,
-      allowedTabs,
-    }, { status: 200 });
+    await supabase
+      .from("users")
+      .update({ sessions: updatedSessions })
+      .eq("id", user.id);
+
+    return NextResponse.json({ token }, { status: 200 });
 
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
