@@ -1,12 +1,12 @@
 const CACHE_NAME = "lumina-cache-v2";
 const OFFLINE_URL = "/offline.html";
 
+// --- INSTALL ---
 self.addEventListener("install", (event) => {
   console.log("✨ [Lumina SW] Installing and caching assets...");
-
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll([
+    caches.open(CACHE_NAME).then((cache) =>
+      cache.addAll([
         "/",
         OFFLINE_URL,
         "/manifest.json",
@@ -17,13 +17,13 @@ self.addEventListener("install", (event) => {
         "/icons/icon-256.png",
         "/icons/icon-384.png",
         "/icons/icon-512.png"
-      ]);
-    })
+      ])
+    )
   );
-
-  self.skipWaiting(); // activate immediately
+  self.skipWaiting();
 });
 
+// --- ACTIVATE ---
 self.addEventListener("activate", (event) => {
   console.log("🚀 [Lumina SW] Activated and ready to serve!");
   event.waitUntil(
@@ -38,12 +38,11 @@ self.addEventListener("activate", (event) => {
       )
     )
   );
-  self.clients.claim(); // take control of all pages
+  self.clients.claim();
 });
 
-// Track online/offline state
+// --- NETWORK STATUS BROADCAST ---
 let wasOnline = true;
-
 function broadcastStatus(message) {
   self.clients.matchAll().then((clients) => {
     clients.forEach((client) => {
@@ -52,6 +51,7 @@ function broadcastStatus(message) {
   });
 }
 
+// --- FETCH HANDLER (Offline Fallback + Cache) ---
 self.addEventListener("fetch", (event) => {
   if (event.request.mode === "navigate") {
     event.respondWith(
@@ -75,24 +75,36 @@ self.addEventListener("fetch", (event) => {
   } else {
     event.respondWith(
       caches.match(event.request).then((res) => {
-        if (res) {
-          return res;
-        }
+        if (res) return res;
         return fetch(event.request)
           .then((response) => {
-            return caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, response.clone());
-              return response;
-            });
+            caches.open(CACHE_NAME).then((cache) =>
+              cache.put(event.request, response.clone())
+            );
+            return response;
           })
-          .catch(() => {
-            if (wasOnline) {
-              wasOnline = false;
-              broadcastStatus("😞 Umepoteza internet, uko offline.");
-            }
-            return caches.match(OFFLINE_URL);
-          });
+          .catch(() => caches.match(OFFLINE_URL))
       })
     );
   }
+});
+
+// --- PUSH NOTIFICATIONS ---
+self.addEventListener("push", (event) => {
+  const data = event.data?.json() || {};
+  const title = data.title || "Lumina Update";
+  const options = {
+    body: data.body || "Una taarifa mpya!",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    data: data.url || "/home"
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.openWindow(event.notification.data)
+  );
 });
