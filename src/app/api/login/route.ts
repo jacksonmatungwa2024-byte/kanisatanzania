@@ -27,31 +27,44 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // 🔍 Password verification (FIXED)
+    // Password verification
     const isMatch = await bcrypt.compare(password, user.password_hash);
 
     if (!isMatch) {
       return NextResponse.json({ error: "Wrong password" }, { status: 401 });
     }
 
-    // Generate token
+    // Generate JWT token
     const token = jwt.sign(
-      { id: user.id, username: user.username },
+      { id: user.id, username: user.username, role: user.role },
       process.env.JWT_SECRET!,
       { expiresIn: "30d" }
     );
 
-    // Save token in sessions
-    const updatedSessions = [...(user.sessions || []), token];
+    // Save token in sessions (limit last 10 sessions)
+    const updatedSessions = [...(user.sessions || []), token].slice(-10);
 
-    await supabase
+    const { error: updateError } = await supabase
       .from("users")
       .update({ sessions: updatedSessions })
       .eq("id", user.id);
 
-    return NextResponse.json({ token }, { status: 200 });
+    if (updateError) {
+      console.error("Failed to update sessions:", updateError.message);
+      return NextResponse.json(
+        { error: "Failed to save session" },
+        { status: 500 }
+      );
+    }
+
+    // Return token to frontend
+    return NextResponse.json(
+      { token, role: user.role, username: user.username },
+      { status: 200 }
+    );
 
   } catch (err: any) {
+    console.error("Login error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
