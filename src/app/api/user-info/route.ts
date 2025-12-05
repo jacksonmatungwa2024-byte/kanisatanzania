@@ -28,8 +28,7 @@ export async function GET(req: Request) {
     const { data: user, error } = await supabase
       .from("users")
       .select(`
-        id, username, full_name, email, role, branch,
-        profile_url, last_login, sessions, metadata
+        id, username, full_name,  role, branch, metadata
       `)
       .eq("id", decoded.id)
       .single();
