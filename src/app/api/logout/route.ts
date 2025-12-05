@@ -10,18 +10,32 @@ const supabase = createClient(
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) return NextResponse.json({ error: "Token missing" }, { status: 401 });
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Token missing" }, { status: 401 });
+    }
 
     const token = authHeader.split(" ")[1];
 
     let decoded: any;
-    try { decoded = jwt.verify(token, process.env.JWT_SECRET!); } 
-    catch { return NextResponse.json({ error: "Token invalid or expired" }, { status: 401 }); }
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET!);
+    } catch {
+      return NextResponse.json({ error: "Token invalid or expired" }, { status: 401 });
+    }
 
-    const { data: user, error } = await supabase.from("users").select("id, sessions").eq("id", decoded.id).single();
-    if (error || !user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("id, sessions")
+      .eq("id", decoded.id)
+      .single();
 
-    const updatedSessions = (user.sessions || []).filter(t => t !== token);
+    if (error || !user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // 🔹 Fix: explicitly type 't' as string
+    const updatedSessions = (user.sessions || []).filter((t: string) => t !== token);
+
     await supabase.from("users").update({ sessions: updatedSessions }).eq("id", user.id);
 
     return NextResponse.json({ message: "Logged out successfully" }, { status: 200 });
