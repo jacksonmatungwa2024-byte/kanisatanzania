@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import ProtectedLayout from "@/app/components/ProtectedLayout"; // ✅ IMPORT
+import ProtectedLayout from "@/app/components/ProtectedLayout";
 import "./Dashboard.css";
 
 const roleLabels: Record<string, string> = {
@@ -27,16 +27,20 @@ export default function Dashboard() {
   const [toast, setToast] = useState("");
   const router = useRouter();
 
-  // Fetch user info safely
+  // ✅ Fetch user info safely and validate session
   useEffect(() => {
     const token = localStorage.getItem("session_token");
-    if (!token) return;
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
 
     const fetchData = async () => {
       try {
-        const res = await fetch("/api/me", {
+        const res = await fetch("/api/check-session", {
           method: "GET",
           headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
         });
         const data = await res.json();
 
@@ -63,7 +67,7 @@ export default function Dashboard() {
     fetchData();
   }, [router]);
 
-  // Auto logout on inactivity (30 min)
+  // ✅ Auto logout on inactivity (30 min)
   useEffect(() => {
     const token = localStorage.getItem("session_token");
     if (!token) return;
@@ -72,7 +76,10 @@ export default function Dashboard() {
 
     const logout = async () => {
       alert("Umeachwa bila shughuli. Tafadhali ingia tena.");
-      await fetch("/api/logout", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      await fetch("/api/logout", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       localStorage.clear();
       sessionStorage.clear();
       router.replace("/login");
@@ -80,7 +87,7 @@ export default function Dashboard() {
 
     const resetIdleTimer = () => {
       clearTimeout(idleTimer);
-      idleTimer = setTimeout(logout, 30 * 60 * 1000);
+      idleTimer = setTimeout(logout, 30 * 60 * 1000); // 30 min
     };
 
     ["mousemove", "keydown", "click", "scroll"].forEach(event =>
@@ -96,7 +103,7 @@ export default function Dashboard() {
     };
   }, [router]);
 
-  // Network status watcher
+  // ✅ Network status watcher
   useEffect(() => {
     const online = () => {
       setToast("🤗 Umerudi online!");
@@ -115,6 +122,16 @@ export default function Dashboard() {
       window.removeEventListener("offline", offline);
     };
   }, []);
+
+  // ✅ Multi-tab / multi-device logout sync
+  useEffect(() => {
+    const syncLogout = () => {
+      const t = localStorage.getItem("session_token");
+      if (!t) router.replace("/login");
+    };
+    window.addEventListener("storage", syncLogout);
+    return () => window.removeEventListener("storage", syncLogout);
+  }, [router]);
 
   const goToTab = (tabId: string, page: string) => {
     if (!allowedTabs.includes(tabId)) {
