@@ -20,51 +20,54 @@ export default function ProtectedLayout({ children }: Props) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const token = localStorage.getItem("session_token");
+    // Small delay to ensure token is set by login page
+    const timeoutId = setTimeout(() => {
+      const token = localStorage.getItem("session_token");
 
-    // No token → redirect
-    if (!token) {
-      logoutAndRedirect();
-      return;
-    }
-
-    const verify = async () => {
-      try {
-        const res = await fetch("/api/check-session", {
-          method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store",
-        });
-
-        if (!res.ok) {
-          logoutAndRedirect();
-        }
-      } catch {
+      if (!token) {
         logoutAndRedirect();
-      } finally {
-        setLoading(false);
+        return;
       }
-    };
 
-    verify();
+      const verifyToken = async () => {
+        try {
+          const res = await fetch("/api/check-session", {
+            method: "GET",
+            headers: { Authorization: `Bearer ${token}` },
+            cache: "no-store",
+          });
 
-    // 🔄 Multi-tab logout sync
-    const syncLogout = () => {
+          if (!res.ok) {
+            logoutAndRedirect();
+          }
+        } catch {
+          logoutAndRedirect();
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      verifyToken();
+    }, 50); // 50ms delay
+
+    // Multi-tab logout sync
+    const handleStorage = () => {
       const t = localStorage.getItem("session_token");
       if (!t) logoutAndRedirect();
     };
-    window.addEventListener("storage", syncLogout);
+    window.addEventListener("storage", handleStorage);
 
-    // 🔄 Re-verify on window focus (desktop fix)
-    const onFocus = () => {
+    // Re-verify on window focus (desktop fix)
+    const handleFocus = () => {
       const t = localStorage.getItem("session_token");
       if (!t) logoutAndRedirect();
     };
-    window.addEventListener("focus", onFocus);
+    window.addEventListener("focus", handleFocus);
 
     return () => {
-      window.removeEventListener("storage", syncLogout);
-      window.removeEventListener("focus", onFocus);
+      clearTimeout(timeoutId);
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("focus", handleFocus);
     };
   }, [router]);
 
