@@ -23,6 +23,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Token invalid or expired" }, { status: 401 });
     }
 
+    // 🔥 Token MUST have sessionId
+    if (!decoded.sessionId) {
+      return NextResponse.json({ error: "Invalid token structure" }, { status: 401 });
+    }
+
     const { data: user, error } = await supabase
       .from("users")
       .select("id, sessions")
@@ -33,12 +38,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // 🔹 Fix: explicitly type 't' as string
-    const updatedSessions = (user.sessions || []).filter((t: string) => t !== token);
+    // 🔥 REMOVE sessionId, not token
+    const updatedSessions = (user.sessions || []).filter(
+      (s: string) => s !== decoded.sessionId
+    );
 
-    await supabase.from("users").update({ sessions: updatedSessions }).eq("id", user.id);
+    await supabase
+      .from("users")
+      .update({ sessions: updatedSessions })
+      .eq("id", user.id);
 
     return NextResponse.json({ message: "Logged out successfully" }, { status: 200 });
+
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
