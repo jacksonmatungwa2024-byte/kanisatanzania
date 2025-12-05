@@ -1,6 +1,9 @@
+// /app/api/security-check/route.ts
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { createClient } from "@supabase/supabase-js";
+
+export const dynamic = "force-dynamic"; // ✅ Hii ni muhimu
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,14 +23,12 @@ export async function GET(req: Request) {
     const token = authHeader.split(" ")[1];
     let decoded: any;
 
-    // ✅ Verify JWT
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET!);
     } catch {
       return NextResponse.json({ status: "invalid_token", message: "Token expired or invalid", ip });
     }
 
-    // ✅ Fetch user sessions
     const { data: user, error } = await supabase
       .from("users")
       .select("id, sessions")
@@ -43,7 +44,6 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: "invalid_session", ip });
     }
 
-    // ✅ Browser/user-agent check
     const isChrome =
       /\bChrome\/\d+/.test(ua) &&
       ua.includes("Safari/537.36") &&
@@ -61,7 +61,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ status: "blocked_browser", message: "Unsupported browser", ip });
     }
 
-    // ✅ Fetch location info
+    // Fetch location
     let location = { city: "unknown", region: "unknown", country: "unknown" };
     try {
       const locRes = await fetch(`http://ip-api.com/json/${ip}`);
@@ -75,11 +75,11 @@ export async function GET(req: Request) {
       message: "User passed security check",
       timestamp: new Date().toISOString(),
       ip,
-      location, // includes city, region, country
-      browser: ua
+      location,
+      browser: ua,
     });
   } catch (err: any) {
     console.error(`[SECURITY] Error: ${err.message}`);
     return NextResponse.json({ status: "error", message: err.message });
   }
-        }
+}
