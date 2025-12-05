@@ -23,6 +23,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Token invalid" }, { status: 401 });
     }
 
+    // Fetch user from Supabase
     const { data: user, error } = await supabase
       .from("users")
       .select(`
@@ -36,8 +37,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // ✅ Ensure sessions array exists
+    const userSessions = Array.isArray(user.sessions) ? user.sessions : [];
+
     // ✅ Multi-device session check
-    if (!user.sessions || !user.sessions.includes(token)) {
+    if (!userSessions.includes(token)) {
       return NextResponse.json({ error: "Session expired, please login again" }, { status: 401 });
     }
 
