@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import jwt from "jsonwebtoken";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -8,35 +9,22 @@ const supabase = createClient(
 
 export async function POST(req: Request) {
   try {
-    const auth = req.headers.get("authorization");
-    if (!auth || !auth.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Token missing" }, { status: 401 });
-    }
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) return NextResponse.json({ error: "Token missing" }, { status: 401 });
 
-    const token = auth.split(" ")[1];
+    const token = authHeader.split(" ")[1];
 
-    // 🔍 Tafuta user aliyepo na token hii
-    const { data: user, error: fetchError } = await supabase
-      .from("users")
-      .select("id")
-      .contains("sessions", [token])
-      .maybeSingle();
+    let decoded: any;
+    try { decoded = jwt.verify(token, process.env.JWT_SECRET!); } 
+    catch { return NextResponse.json({ error: "Token invalid or expired" }, { status: 401 }); }
 
-    if (fetchError || !user) {
-      return NextResponse.json({ error: "Session not found or already logged out" }, { status: 404 });
-    }
+    const { data: user, error } = await supabase.from("users").select("id, sessions").eq("id", decoded.id).single();
+    if (error || !user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    // ✅ Ondoa all sessions
-    const { error: updateError } = await supabase
-      .from("users")
-      .update({ sessions: [] })
-      .eq("id", user.id);
+    const updatedSessions = (user.sessions || []).filter(t => t !== token);
+    await supabase.from("users").update({ sessions: updatedSessions }).eq("id", user.id);
 
-    if (updateError) {
-      return NextResponse.json({ error: "Failed to logout" }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, message: "Logged out from all devices" }, { status: 200 });
+    return NextResponse.json({ message: "Logged out successfully" }, { status: 200 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
