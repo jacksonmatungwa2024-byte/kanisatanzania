@@ -23,87 +23,118 @@ export default function Dashboard() {
   const [statusLight, setStatusLight] = useState<"green" | "red" | "grey">("grey");
   const [statusText, setStatusText] = useState("⏳ Tafadhali chagua paneli.");
   const [audioPlaying, setAudioPlaying] = useState(false);
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [toast, setToast] = useState("");
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // ✅ Fetch user info safely and validate session
+  const TOKEN_KEY = "session_token";
+  const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+
+  // ---------- Fetch user info (no double auth) ----------
   useEffect(() => {
-    const token = localStorage.getItem("session_token");
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
+    let mounted = true;
 
-    const fetchData = async () => {
+    const fetchUser = async () => {
       try {
-        const res = await fetch("/api/check-session", {
-          method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store",
-        });
-        const data = await res.json();
-
-        if (data.error) {
-          localStorage.clear();
-          sessionStorage.clear();
+        // IMPORTANT: this endpoint should return user info only if request is already authenticated
+        // (ProtectedLayout / middleware should have validated the token).
+        const res = await fetch("/api/user-info", { cache: "no-store" });
+        if (!res.ok) {
+          // If not ok, force redirect to login
           router.replace("/login");
           return;
         }
 
-        setRole(data.role);
+        const data = await res.json();
+        if (data?.error) {
+          router.replace("/login");
+          return;
+        }
+
+        if (!mounted) return;
+
+        setRole(data.role || "");
         setFullName(data.full_name || "");
         setBranch(data.branch || "");
         setProfileUrl(data.profile_url || "");
         setLastLogin(data.last_login ? new Date(data.last_login).toLocaleString() : "");
         setAllowedTabs(data.allowedTabs || []);
-      } catch {
-        localStorage.clear();
-        sessionStorage.clear();
+        setLoading(false);
+      } catch (err) {
         router.replace("/login");
       }
     };
 
-    fetchData();
-  }, [router]);
-
-  // ✅ Auto logout on inactivity (30 min)
-  useEffect(() => {
-    const token = localStorage.getItem("session_token");
-    if (!token) return;
-
-    let idleTimer: NodeJS.Timeout;
-
-    const logout = async () => {
-      alert("Umeachwa bila shughuli. Tafadhali ingia tena.");
-      await fetch("/api/logout", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      localStorage.clear();
-      sessionStorage.clear();
-      router.replace("/login");
-    };
-
-    const resetIdleTimer = () => {
-      clearTimeout(idleTimer);
-      idleTimer = setTimeout(logout, 30 * 60 * 1000); // 30 min
-    };
-
-    ["mousemove", "keydown", "click", "scroll"].forEach(event =>
-      window.addEventListener(event, resetIdleTimer)
-    );
-    resetIdleTimer();
+    fetchUser();
 
     return () => {
-      clearTimeout(idleTimer);
-      ["mousemove", "keydown", "click", "scroll"].forEach(event =>
-        window.removeEventListener(event, resetIdleTimer)
-      );
+      mounted = false;
     };
   }, [router]);
 
-  // ✅ Network status watcher
+  // ---------- Idle logout (debounced, robust) ----------
+  useEffect(() => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) return; // nothing to do if no token
+
+    const timerRef = { id: undefined as unknown as number | null };
+
+    const performLogout = async (showToast = true) => {
+      try {
+        // call server logout if token available
+        const tokenNow = localStorage.getItem(TOKEN_KEY);
+        if (tokenNow) {
+          await fetch("/api/logout", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${tokenNow}` },
+          });
+        }
+      } catch {
+        // ignore network errors for logout call
+      } finally {
+        // remove only the session token keys
+        localStorage.removeItem(TOKEN_KEY);
+        sessionStorage.removeItem(TOKEN_KEY);
+        if (showToast) {
+          setToast("Umeachwa bila shughuli. Tafadhali ingia tena.");
+          setTimeout(() => setToast(""), 4000);
+        }
+        router.replace("/login");
+      }
+    };
+
+    const resetTimer = () => {
+      if (timerRef.id) {
+        window.clearTimeout(timerRef.id);
+      }
+      // set new timer
+      timerRef.id = window.setTimeout(() => performLogout(true), IDLE_TIMEOUT_MS);
+    };
+
+    // activity events
+    const activityEvents: Array<keyof WindowEventMap> = [
+      "mousemove",
+      "keydown",
+      "mousedown",
+      "touchstart",
+      "wheel",
+      "scroll",
+    ];
+
+    activityEvents.forEach((ev) => window.addEventListener(ev, resetTimer, { passive: true }));
+
+    // start timer
+    resetTimer();
+
+    // cleanup
+    return () => {
+      if (timerRef.id) window.clearTimeout(timerRef.id);
+      activityEvents.forEach((ev) => window.removeEventListener(ev, resetTimer));
+    };
+  }, [router]);
+
+  // ---------- Network status watcher ----------
   useEffect(() => {
     const online = () => {
       setToast("🤗 Umerudi online!");
@@ -123,47 +154,84 @@ export default function Dashboard() {
     };
   }, []);
 
-  // ✅ Multi-tab / multi-device logout sync
+  // ---------- Multi-tab sync logout ----------
   useEffect(() => {
-    const syncLogout = () => {
-      const t = localStorage.getItem("session_token");
-      if (!t) router.replace("/login");
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === TOKEN_KEY && !e.newValue) {
+        // token was removed in another tab
+        router.replace("/login");
+      }
     };
-    window.addEventListener("storage", syncLogout);
-    return () => window.removeEventListener("storage", syncLogout);
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, [router]);
 
+  // ---------- Navigation to tabs ----------
   const goToTab = (tabId: string, page: string) => {
     if (!allowedTabs.includes(tabId)) {
       setStatusLight("red");
       setStatusText("🚫 Huna ruhusa ya kuingia sehemu hii.");
+      setTimeout(() => {
+        setStatusLight("grey");
+        setStatusText("⏳ Tafadhali chagua paneli.");
+      }, 3500);
       return;
     }
     setStatusLight("green");
     setStatusText(`⏳ Inaelekeza kwenye ${roleLabels[tabId] || tabId}...`);
-    window.location.href = page;
+    // small delay for UX
+    setTimeout(() => {
+      window.location.href = page;
+    }, 300);
   };
 
-  const toggleAudio = () => {
+  // ---------- Audio controls ----------
+  const toggleAudio = async () => {
     if (!audioRef.current) return;
-    audioPlaying ? audioRef.current.pause() : audioRef.current.play();
-    setAudioPlaying(!audioPlaying);
+    try {
+      if (audioPlaying) {
+        audioRef.current.pause();
+        setAudioPlaying(false);
+      } else {
+        await audioRef.current.play();
+        setAudioPlaying(true);
+      }
+    } catch {
+      setToast("Haiwezi kucheza muziki sasa.");
+      setTimeout(() => setToast(""), 3000);
+    }
   };
 
+  // ---------- Logout ----------
   const handleLogout = async () => {
-    const token = localStorage.getItem("session_token");
+    const token = localStorage.getItem(TOKEN_KEY);
     if (token) {
-      await fetch("/api/logout", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      try {
+        await fetch("/api/logout", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      } catch {
+        // ignore network error
+      }
     }
-    localStorage.clear();
-    sessionStorage.clear();
+    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
     router.replace("/login");
   };
 
+  // ---------- Loading state while user info loads ----------
+  if (loading) {
+    return (
+      <ProtectedLayout>
+        <div className="dashboard-container">
+          <div className="loading">Loading profile…</div>
+        </div>
+      </ProtectedLayout>
+    );
+  }
+
   return (
     <ProtectedLayout>
-      <div className="dashboard-container">
-        {toast && <div className="toast">{toast}</div>}
+      <div className="dashboard-container" role="main">
+        {toast && <div className="toast" role="status">{toast}</div>}
         <div className="theme-verse">“Nuru yako itangaze gizani.” — Isaya 60:1</div>
 
         <h2>
@@ -174,9 +242,15 @@ export default function Dashboard() {
         {lastLogin && <div className="info-block">🕒 Mwisho kuingia: {lastLogin}</div>}
         {profileUrl && <img src={profileUrl} alt="Profile" className="profile-img" />}
 
-        <button onClick={toggleAudio}>
-          🔊 {audioPlaying ? "Sitisha" : "Cheza Muziki"}
-        </button>
+        <div className="controls-row">
+          <button onClick={toggleAudio} aria-pressed={audioPlaying} className="audio-btn">
+            🔊 {audioPlaying ? "Sitisha" : "Cheza Muziki"}
+          </button>
+
+          <button onClick={handleLogout} className="logout-btn" aria-label="Logout">
+            🚪 Logout
+          </button>
+        </div>
 
         <audio ref={audioRef} loop>
           <source src="/ana.mp3" type="audio/mp3" />
@@ -184,18 +258,25 @@ export default function Dashboard() {
 
         <div className={`status-indicator ${statusLight}`}>{statusText}</div>
 
-        <div className="panel-links">
-          {allowedTabs.includes("admin") && <div onClick={() => goToTab("admin", "/admin")}>Admin</div>}
-          {allowedTabs.includes("usher") && <div onClick={() => goToTab("usher", "/usher")}>Mhudumu</div>}
-          {allowedTabs.includes("pastor") && <div onClick={() => goToTab("pastor", "/pastor")}>Mchungaji</div>}
-          {allowedTabs.includes("media") && <div onClick={() => goToTab("media", "/media")}>Media</div>}
-          {allowedTabs.includes("finance") && <div onClick={() => goToTab("finance", "/finance")}>Fedha</div>}
+        <div className="panel-links" aria-label="Available panels">
+          {allowedTabs.includes("admin") && (
+            <button onClick={() => goToTab("admin", "/admin")} className="panel-link">Admin</button>
+          )}
+          {allowedTabs.includes("usher") && (
+            <button onClick={() => goToTab("usher", "/usher")} className="panel-link">Mhudumu</button>
+          )}
+          {allowedTabs.includes("pastor") && (
+            <button onClick={() => goToTab("pastor", "/pastor")} className="panel-link">Mchungaji</button>
+          )}
+          {allowedTabs.includes("media") && (
+            <button onClick={() => goToTab("media", "/media")} className="panel-link">Media</button>
+          )}
+          {allowedTabs.includes("finance") && (
+            <button onClick={() => goToTab("finance", "/finance")} className="panel-link">Fedha</button>
+          )}
         </div>
-
-        <button onClick={handleLogout} className="logout-btn">
-          🚪 Logout
-        </button>
       </div>
     </ProtectedLayout>
   );
-}
+    }
+            
