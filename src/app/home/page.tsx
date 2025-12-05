@@ -2,9 +2,8 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import ProtectedLayout from "@/app/components/ProtectedLayout";  // ✅ IMPORT HERE
+import ProtectedLayout from "@/app/components/ProtectedLayout"; // ✅ IMPORT
 import "./Dashboard.css";
-
 
 const roleLabels: Record<string, string> = {
   admin: "Admin",
@@ -26,8 +25,9 @@ export default function Dashboard() {
   const [audioPlaying, setAudioPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [toast, setToast] = useState("");
+  const router = useRouter();
 
-  // Fetch user info
+  // Fetch user info safely
   useEffect(() => {
     const token = localStorage.getItem("session_token");
     if (!token) return;
@@ -43,7 +43,7 @@ export default function Dashboard() {
         if (data.error) {
           localStorage.clear();
           sessionStorage.clear();
-          window.location.href = "/login";
+          router.replace("/login");
           return;
         }
 
@@ -56,31 +56,31 @@ export default function Dashboard() {
       } catch {
         localStorage.clear();
         sessionStorage.clear();
-        window.location.href = "/login";
+        router.replace("/login");
       }
     };
 
     fetchData();
-  }, []);
+  }, [router]);
 
-  // Auto logout on inactivity
+  // Auto logout on inactivity (30 min)
   useEffect(() => {
     const token = localStorage.getItem("session_token");
     if (!token) return;
 
     let idleTimer: NodeJS.Timeout;
+
+    const logout = async () => {
+      alert("Umeachwa bila shughuli. Tafadhali ingia tena.");
+      await fetch("/api/logout", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      localStorage.clear();
+      sessionStorage.clear();
+      router.replace("/login");
+    };
+
     const resetIdleTimer = () => {
       clearTimeout(idleTimer);
-      idleTimer = setTimeout(async () => {
-        alert("Umeachwa bila shughuli. Tafadhali ingia tena.");
-        await fetch("/api/logout", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        localStorage.clear();
-        sessionStorage.clear();
-        window.location.href = "/login";
-      }, 30 * 60 * 1000);
+      idleTimer = setTimeout(logout, 30 * 60 * 1000);
     };
 
     ["mousemove", "keydown", "click", "scroll"].forEach(event =>
@@ -94,9 +94,9 @@ export default function Dashboard() {
         window.removeEventListener(event, resetIdleTimer)
       );
     };
-  }, []);
+  }, [router]);
 
-  // Network status
+  // Network status watcher
   useEffect(() => {
     const online = () => {
       setToast("🤗 Umerudi online!");
@@ -109,6 +109,7 @@ export default function Dashboard() {
 
     window.addEventListener("online", online);
     window.addEventListener("offline", offline);
+
     return () => {
       window.removeEventListener("online", online);
       window.removeEventListener("offline", offline);
@@ -139,7 +140,7 @@ export default function Dashboard() {
     }
     localStorage.clear();
     sessionStorage.clear();
-    window.location.href = "/login";
+    router.replace("/login");
   };
 
   return (
