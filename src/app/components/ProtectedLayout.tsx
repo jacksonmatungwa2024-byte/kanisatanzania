@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface Props {
@@ -9,16 +9,26 @@ interface Props {
 
 export default function ProtectedLayout({ children }: Props) {
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+
+  const logoutAndRedirect = () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    router.replace("/login");
+  };
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
     const token = localStorage.getItem("session_token");
 
+    // No token → redirect
     if (!token) {
-      router.replace("/login");
+      logoutAndRedirect();
       return;
     }
 
-    const verifyToken = async () => {
+    const verify = async () => {
       try {
         const res = await fetch("/api/check-session", {
           method: "GET",
@@ -27,22 +37,38 @@ export default function ProtectedLayout({ children }: Props) {
         });
 
         if (!res.ok) {
-          localStorage.clear();
-          sessionStorage.clear();
-          router.replace("/login");
+          logoutAndRedirect();
         }
-      } catch (err) {
-        localStorage.clear();
-        sessionStorage.clear();
-        router.replace("/login");
+      } catch {
+        logoutAndRedirect();
+      } finally {
+        setLoading(false);
       }
     };
 
-    verifyToken();
+    verify();
 
-    // Prevent browser caching back button
-    window.history.replaceState(null, "", window.location.href);
+    // 🔄 Multi-tab logout sync
+    const syncLogout = () => {
+      const t = localStorage.getItem("session_token");
+      if (!t) logoutAndRedirect();
+    };
+    window.addEventListener("storage", syncLogout);
+
+    // 🔄 Re-verify on window focus (desktop fix)
+    const onFocus = () => {
+      const t = localStorage.getItem("session_token");
+      if (!t) logoutAndRedirect();
+    };
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      window.removeEventListener("storage", syncLogout);
+      window.removeEventListener("focus", onFocus);
+    };
   }, [router]);
+
+  if (loading) return <div>Loading...</div>;
 
   return <>{children}</>;
 }
