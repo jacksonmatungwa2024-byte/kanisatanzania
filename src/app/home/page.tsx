@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useEffect, useState, useRef, ReactNode } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import ProtectedLayout from "@/app/components/ProtectedLayout";  // ✅ IMPORT HERE
 import "./Dashboard.css";
+
 
 const roleLabels: Record<string, string> = {
   admin: "Admin",
@@ -11,61 +13,6 @@ const roleLabels: Record<string, string> = {
   media: "Media",
   finance: "Fedha",
 };
-
-// ProtectedLayout component
-function ProtectedLayout({ children }: { children: ReactNode }) {
-  const router = useRouter();
-  const [token, setToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const storedToken = localStorage.getItem("session_token");
-    setToken(storedToken);
-
-    if (!storedToken) {
-      router.replace("/login");
-      return;
-    }
-
-    const verifyToken = async () => {
-      try {
-        const res = await fetch("/api/me", {
-          method: "GET",
-          headers: { Authorization: `Bearer ${storedToken}` },
-          cache: "no-store",
-        });
-
-        if (!res.ok) {
-          localStorage.clear();
-          sessionStorage.clear();
-          router.replace("/login");
-        }
-      } catch {
-        localStorage.clear();
-        sessionStorage.clear();
-        router.replace("/login");
-      }
-    };
-
-    verifyToken();
-
-    // Multi-tab logout support
-    const handleStorage = () => {
-      const newToken = localStorage.getItem("session_token");
-      if (!newToken) router.replace("/login");
-    };
-    window.addEventListener("storage", handleStorage);
-
-    // Prevent cached back
-    window.history.replaceState(null, "", window.location.href);
-
-    return () => window.removeEventListener("storage", handleStorage);
-  }, [router]);
-
-  if (!token) return null;
-  return <>{children}</>;
-}
 
 export default function Dashboard() {
   const [role, setRole] = useState("");
@@ -233,4 +180,4 @@ export default function Dashboard() {
       </div>
     </ProtectedLayout>
   );
-      }
+}
