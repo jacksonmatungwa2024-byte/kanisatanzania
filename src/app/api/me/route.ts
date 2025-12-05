@@ -23,7 +23,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Token invalid" }, { status: 401 });
     }
 
-    // Fetch user from Supabase
+    // decoded MUST have: { id, sessionId }
+    if (!decoded.sessionId) {
+      return NextResponse.json({ error: "Invalid token structure" }, { status: 401 });
+    }
+
+    // Fetch user from DB
     const { data: user, error } = await supabase
       .from("users")
       .select(`
@@ -37,15 +42,19 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // ✅ Ensure sessions array exists
+    // Ensure sessions exists
     const userSessions = Array.isArray(user.sessions) ? user.sessions : [];
 
-    // ✅ Multi-device session check
-    if (!userSessions.includes(token)) {
-      return NextResponse.json({ error: "Session expired, please login again" }, { status: 401 });
+    // 🔥 Validate sessionId, NOT full token
+    if (!userSessions.includes(decoded.sessionId)) {
+      return NextResponse.json(
+        { error: "Session expired, please login again" },
+        { status: 401 }
+      );
     }
 
-    const allPanels = ["admin", "usher", "pastor", "media", "finance"];
+    // Allowed tabs
+    const allPanels = ["admin", "usher", "pastor", "media, finance"];
     const allTabIds = [
       "tabManager","reactivation","users","registration","data","matangazo",
       "storage","settings","profile","home","usajili","mafunzo","reports","messages",
@@ -55,6 +64,7 @@ export async function GET(req: Request) {
     ];
 
     let allowedTabs: string[] = [];
+
     if (user.role === "admin") {
       allowedTabs = [...allPanels, ...allTabIds];
     } else {
@@ -70,8 +80,8 @@ export async function GET(req: Request) {
       branch: user.branch,
       profile_url: user.profile_url,
       last_login: user.last_login,
-      allowedTabs,
-    }, { status: 200 });
+      allowedTabs
+    });
 
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
