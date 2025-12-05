@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { createClient } from "@supabase/supabase-js";
+import { randomUUID } from "crypto";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,30 +12,50 @@ const supabase = createClient(
 export async function POST(req: Request) {
   try {
     const { username, password } = await req.json();
-    if (!username || !password) return NextResponse.json({ error: "Missing credentials" }, { status: 400 });
+    if (!username || !password) {
+      return NextResponse.json({ error: "Missing credentials" }, { status: 400 });
+    }
 
+    // Fetch user
     const { data: user, error } = await supabase
       .from("users")
       .select("id, username, password_hash, role, sessions")
       .eq("username", username)
       .single();
 
-    if (error || !user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (error || !user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
+    // Password check
     const isMatch = await bcrypt.compare(password, user.password_hash);
-    if (!isMatch) return NextResponse.json({ error: "Wrong password" }, { status: 401 });
+    if (!isMatch) {
+      return NextResponse.json({ error: "Wrong password" }, { status: 401 });
+    }
 
+    // Create sessionId
+    const sessionId = randomUUID();
+
+    // Create JWT with sessionId
     const token = jwt.sign(
-      { id: user.id, username: user.username, role: user.role },
+      { id: user.id, sessionId },
       process.env.JWT_SECRET!,
-      { expiresIn: "30d" }
+      { expiresIn: "30mins" }
     );
 
-    // Add token to sessions, keep last 10
-    const updatedSessions = [...(user.sessions || []), token].slice(-10);
-    await supabase.from("users").update({ sessions: updatedSessions }).eq("id", user.id);
+    // Save sessionId only
+    const updatedSessions = [...(user.sessions || []), sessionId].slice(-10);
 
-    return NextResponse.json({ token, role: user.role, username: user.username }, { status: 200 });
+    await supabase
+      .from("users")
+      .update({ sessions: updatedSessions })
+      .eq("id", user.id);
+
+    return NextResponse.json(
+      { token, role: user.role, username: user.username },
+      { status: 200 }
+    );
+
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
