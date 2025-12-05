@@ -40,15 +40,21 @@ export default function LoginPage() {
 
       if (data.error) {
         setLoginMessage(`❌ ${data.error}`);
-      } else {
-        // 🟢 SAVE NEW SESSION TOKEN IN localStorage
+      } else if (data.token) {
+        // 🟢 SAVE SESSION TOKEN TO localStorage
         localStorage.setItem("session_token", data.token);
+
+        // Confirm token is saved
+        console.log("Saved session_token:", localStorage.getItem("session_token"));
 
         setLoginMessage("✅ Inakuelekeza...");
 
+        // Small delay to ensure ProtectedLayout reads token properly
         setTimeout(() => {
           router.push("/home");
-        }, 700);
+        }, 300);
+      } else {
+        setLoginMessage("❌ Hitilafu: token haipo kwenye response");
       }
     } catch (err: any) {
       setLoginMessage("❌ Hitilafu ya mtandao: " + err.message);
