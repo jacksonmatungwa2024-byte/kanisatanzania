@@ -29,21 +29,19 @@ export async function POST(req: Request) {
 
     // Password verification
     const isMatch = await bcrypt.compare(password, user.password_hash);
-
     if (!isMatch) {
       return NextResponse.json({ error: "Wrong password" }, { status: 401 });
     }
 
-    // Generate JWT token
+    // Generate JWT token (30 days)
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
       process.env.JWT_SECRET!,
       { expiresIn: "30d" }
     );
 
-    // Save token in sessions (limit last 10 sessions)
+    // Save token in sessions array (keep last 10 sessions)
     const updatedSessions = [...(user.sessions || []), token].slice(-10);
-
     const { error: updateError } = await supabase
       .from("users")
       .update({ sessions: updatedSessions })
@@ -51,13 +49,10 @@ export async function POST(req: Request) {
 
     if (updateError) {
       console.error("Failed to update sessions:", updateError.message);
-      return NextResponse.json(
-        { error: "Failed to save session" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Failed to save session" }, { status: 500 });
     }
 
-    // Return token to frontend
+    // Return token and user info to frontend
     return NextResponse.json(
       { token, role: user.role, username: user.username },
       { status: 200 }
