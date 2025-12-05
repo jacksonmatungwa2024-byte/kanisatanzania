@@ -27,7 +27,7 @@ export async function GET(req: Request) {
     // 🧍 Fetch user info
     const { data: user, error } = await supabase
       .from("users")
-      .select("id, full_name, role, branch, profile_url, last_login, sessions")
+      .select("id, full_name, role, branch, last_login, sessions")
       .eq("id", decoded.id)
       .single();
 
@@ -58,7 +58,7 @@ export async function GET(req: Request) {
       full_name: user.full_name,
       role: user.role,
       branch: user.branch,
-      profile_url: user.profile_url,
+      
       last_login: user.last_login,
       allowedTabs,
       sessionValid: true
