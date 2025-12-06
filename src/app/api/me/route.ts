@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { createClient } from "@supabase/supabase-js";
 
+export const dynamic = "force-dynamic";
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -16,6 +18,7 @@ export async function GET(req: Request) {
 
     const token = authHeader.split(" ")[1];
 
+    // Verify JWT
     let decoded: any;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET!);
@@ -23,17 +26,24 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Token invalid" }, { status: 401 });
     }
 
-    // decoded MUST have: { id, sessionId }
     if (!decoded.sessionId) {
       return NextResponse.json({ error: "Invalid token structure" }, { status: 401 });
     }
 
-    // Fetch user from DB
+    // Fetch user from Supabase
     const { data: user, error } = await supabase
       .from("users")
       .select(`
-        id, username, role, full_name, branch,
-         last_login, metadata
+        id,
+        username,
+        email,
+        role,
+        full_name,
+        branch,
+        profile_url,
+        last_login,
+        metadata,
+        sessions
       `)
       .eq("id", decoded.id)
       .single();
@@ -42,10 +52,9 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Ensure sessions exists
     const userSessions = Array.isArray(user.sessions) ? user.sessions : [];
 
-    // 🔥 Validate sessionId, NOT full token
+    // Validate sessionId only
     if (!userSessions.includes(decoded.sessionId)) {
       return NextResponse.json(
         { error: "Session expired, please login again" },
@@ -53,8 +62,9 @@ export async function GET(req: Request) {
       );
     }
 
-    // Allowed tabs
-    const allPanels = ["admin", "usher", "pastor", "media, finance"];
+    // Panels
+    const allPanels = ["admin", "usher", "pastor", "media", "finance"];
+
     const allTabIds = [
       "tabManager","reactivation","users","registration","data","matangazo",
       "storage","settings","profile","home","usajili","mafunzo","reports","messages",
@@ -82,8 +92,8 @@ export async function GET(req: Request) {
       last_login: user.last_login,
       allowedTabs
     });
-
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
-}
+        }
+      
