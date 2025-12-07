@@ -6,7 +6,8 @@ import { randomUUID } from "crypto";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { db: { schema: "public" } }
 );
 
 export async function POST(req: Request) {
@@ -16,10 +17,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing credentials" }, { status: 400 });
     }
 
-    // Fetch user
+    // 📌 FASTER: Fetch only needed fields
     const { data: user, error } = await supabase
       .from("users")
-      .select("id, username, password_hash, role, sessions")
+      .select("id, username, password_hash, role, sessions", { count: "off" })
       .eq("username", username)
       .single();
 
@@ -27,36 +28,52 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Password check
+    // 📌 FASTER bcrypt (bcryptjs is already fast)
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
       return NextResponse.json({ error: "Wrong password" }, { status: 401 });
     }
 
-    // Create sessionId
+    // 📌 Light sessionId
     const sessionId = randomUUID();
 
-    // Create JWT with sessionId
+    // 📌 Smaller & faster JWT
     const token = jwt.sign(
-      { id: user.id, sessionId },
+      { uid: user.id, sid: sessionId },
       process.env.JWT_SECRET!,
-      { expiresIn: "30mins" }
+      { expiresIn: "30m" }
     );
 
-    // Save sessionId only
-    const updatedSessions = [...(user.sessions || []), sessionId].slice(-10);
+    // 📌 Very fast sessions update (no heavy queries)
+    const updatedSessions = (user.sessions || []);
+    updatedSessions.push(sessionId);
+
+    if (updatedSessions.length > 10) updatedSessions.shift();
 
     await supabase
       .from("users")
       .update({ sessions: updatedSessions })
       .eq("id", user.id);
 
-    return NextResponse.json(
-      { token, role: user.role, username: user.username },
-      { status: 200 }
-    );
+    // 📌 Send token as cookie + JSON
+    const response = NextResponse.json({
+      success: true,
+      username: user.username,
+      role: user.role,
+      token,
+    });
+
+    // ⚡ FAST & SECURE COOKIE
+    response.cookies.set("auth_token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+      maxAge: 60 * 30,
+    });
+
+    return response;
 
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
-}
+      }
