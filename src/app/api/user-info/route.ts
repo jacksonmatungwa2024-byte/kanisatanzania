@@ -33,6 +33,7 @@ export async function GET(req: Request) {
         branch,
         metadata,
         sessions,
+        email,
         profile_url,
         last_login
       `)
