@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import ProtectedLayout from "@/app/components/ProtectedLayout";
 import "./Dashboard.css";
 
-const roleLabels = {
+const roleLabels: Record<string, string> = {
   admin: "Admin",
   usher: "Mhudumu",
   pastor: "Mchungaji",
@@ -19,16 +19,15 @@ export default function Dashboard() {
   const [branch, setBranch] = useState("");
   const [profileUrl, setProfileUrl] = useState("");
   const [lastLogin, setLastLogin] = useState("");
-  const [allowedTabs, setAllowedTabs] = useState([]);
+  const [allowedTabs, setAllowedTabs] = useState<string[]>([]);
   const [statusLight, setStatusLight] = useState("grey");
   const [statusText, setStatusText] = useState("⏳ Tafadhali chagua paneli.");
   const [audioPlaying, setAudioPlaying] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null); // ✅ only here
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [toast, setToast] = useState("");
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
-  
 
+  const router = useRouter();
   const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 
   // ---------------- Fetch user via COOKIE ----------------
@@ -38,7 +37,6 @@ export default function Dashboard() {
     const load = async () => {
       try {
         const res = await fetch("/api/user-info", { cache: "no-store" });
-
         if (!res.ok) return router.replace("/login");
 
         const data = await res.json();
@@ -52,7 +50,6 @@ export default function Dashboard() {
           data.last_login ? new Date(data.last_login).toLocaleString() : ""
         );
         setAllowedTabs(data.allowedTabs || []);
-
         setLoading(false);
       } catch {
         router.replace("/login");
@@ -73,11 +70,10 @@ export default function Dashboard() {
     };
 
     let timer: number;
-const reset = () => {
-  clearTimeout(timer);
-  timer = window.setTimeout(logout, IDLE_TIMEOUT_MS);
-};
-    
+    const reset = () => {
+      clearTimeout(timer);
+      timer = window.setTimeout(logout, IDLE_TIMEOUT_MS);
+    };
 
     ["mousemove", "keydown", "mousedown", "touchstart", "scroll"].forEach((ev) =>
       window.addEventListener(ev, reset)
@@ -111,28 +107,24 @@ const reset = () => {
   };
 
   // ---------------- Audio toggle ----------------
-  const [audioPlaying, setAudioPlaying] = useState(false);
-const audioRef = useRef<HTMLAudioElement | null>(null); // ✅ typed ref
-
-const toggleAudio = async () => {
-  if (!audioRef.current) return;
-  try {
-    if (audioPlaying) {
-      audioRef.current.pause();
-      setAudioPlaying(false);
-    } else {
-      await audioRef.current.play();
-      setAudioPlaying(true);
+  const toggleAudio = async () => {
+    if (!audioRef.current) return;
+    try {
+      if (audioPlaying) {
+        audioRef.current.pause();
+        setAudioPlaying(false);
+      } else {
+        await audioRef.current.play();
+        setAudioPlaying(true);
+      }
+    } catch {
+      setToast("Haiwezi kucheza muziki sasa.");
+      setTimeout(() => setToast(""), 3000);
     }
-  } catch {
-    setToast("Haiwezi kucheza muziki sasa.");
-    setTimeout(() => setToast(""), 3000);
-  }
-};
-  
+  };
 
   // ---------------- Tab navigation ----------------
-  const goToTab = (tabId, page) => {
+  const goToTab = (tabId: string, page: string) => {
     if (!allowedTabs.includes(tabId)) {
       setStatusLight("red");
       setStatusText("🚫 Huna ruhusa ya kuingia sehemu hii.");
@@ -174,8 +166,12 @@ const toggleAudio = async () => {
         {profileUrl && <img src={profileUrl} alt="Profile" className="profile-img" />}
 
         <div className="controls-row">
-          <button onClick={toggleAudio}>🔊 {audioPlaying ? "Sitisha" : "Cheza Muziki"}</button>
-          <button onClick={handleLogout} className="logout-btn">🚪 Logout</button>
+          <button onClick={toggleAudio}>
+            🔊 {audioPlaying ? "Sitisha" : "Cheza Muziki"}
+          </button>
+          <button onClick={handleLogout} className="logout-btn">
+            🚪 Logout
+          </button>
         </div>
 
         <audio ref={audioRef} loop>
@@ -204,5 +200,5 @@ const toggleAudio = async () => {
       </div>
     </ProtectedLayout>
   );
-       }
-          
+        }
+            
