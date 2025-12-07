@@ -23,10 +23,11 @@ export default function Dashboard() {
   const [statusLight, setStatusLight] = useState("grey");
   const [statusText, setStatusText] = useState("⏳ Tafadhali chagua paneli.");
   const [audioPlaying, setAudioPlaying] = useState(false);
-  const audioRef = useRef(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null); // ✅ only here
   const [toast, setToast] = useState("");
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  
 
   const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 
