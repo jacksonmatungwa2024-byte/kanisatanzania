@@ -18,7 +18,6 @@ export async function GET(req: Request) {
 
     const token = authHeader.split(" ")[1];
 
-    // Verify JWT
     let decoded: any;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET!);
@@ -30,7 +29,6 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Invalid token structure" }, { status: 401 });
     }
 
-    // Fetch user from Supabase
     const { data: user, error } = await supabase
       .from("users")
       .select(`
@@ -54,7 +52,6 @@ export async function GET(req: Request) {
 
     const userSessions = Array.isArray(user.sessions) ? user.sessions : [];
 
-    // Validate sessionId only
     if (!userSessions.includes(decoded.sessionId)) {
       return NextResponse.json(
         { error: "Session expired, please login again" },
@@ -62,7 +59,6 @@ export async function GET(req: Request) {
       );
     }
 
-    // Panels
     const allPanels = ["admin", "usher", "pastor", "media", "finance"];
 
     const allTabIds = [
@@ -90,10 +86,7 @@ export async function GET(req: Request) {
       branch: user.branch,
       profile_url: user.profile_url,
       last_login: user.last_login,
-      allowedTabs
-    });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
-  }
-        }
+      metadata: user.metadata || {},
+      sessions: user.sessions || [],
+      allo
       
