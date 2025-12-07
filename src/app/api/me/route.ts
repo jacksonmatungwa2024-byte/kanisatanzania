@@ -77,7 +77,7 @@ export async function GET(req: Request) {
       allowedTabs = [user.role, ...(user.metadata?.allowed_tabs || [])];
     }
 
-    return NextResponse.json({
+        return NextResponse.json({
       id: user.id,
       username: user.username,
       email: user.email,
@@ -88,5 +88,12 @@ export async function GET(req: Request) {
       last_login: user.last_login,
       metadata: user.metadata || {},
       sessions: user.sessions || [],
-      allo
-      
+      allowed_tabs: allowedTabs,
+    });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: "Server error", details: err.message },
+      { status: 500 }
+    );
+  }
+          }
