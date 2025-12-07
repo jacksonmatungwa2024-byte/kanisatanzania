@@ -71,11 +71,12 @@ export default function Dashboard() {
       router.replace("/login");
     };
 
-    let timer;
-    const reset = () => {
-      clearTimeout(timer);
-      timer = setTimeout(logout, IDLE_TIMEOUT_MS);
-    };
+    let timer: number;
+const reset = () => {
+  clearTimeout(timer);
+  timer = window.setTimeout(logout, IDLE_TIMEOUT_MS);
+};
+    
 
     ["mousemove", "keydown", "mousedown", "touchstart", "scroll"].forEach((ev) =>
       window.addEventListener(ev, reset)
