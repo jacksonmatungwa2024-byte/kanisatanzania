@@ -110,21 +110,25 @@ const reset = () => {
   };
 
   // ---------------- Audio toggle ----------------
-  const toggleAudio = async () => {
-    if (!audioRef.current) return;
-    try {
-      if (audioPlaying) {
-        audioRef.current.pause();
-        setAudioPlaying(false);
-      } else {
-        await audioRef.current.play();
-        setAudioPlaying(true);
-      }
-    } catch {
-      setToast("Haiwezi kucheza muziki sasa.");
-      setTimeout(() => setToast(""), 3000);
+  const [audioPlaying, setAudioPlaying] = useState(false);
+const audioRef = useRef<HTMLAudioElement | null>(null); // ✅ typed ref
+
+const toggleAudio = async () => {
+  if (!audioRef.current) return;
+  try {
+    if (audioPlaying) {
+      audioRef.current.pause();
+      setAudioPlaying(false);
+    } else {
+      await audioRef.current.play();
+      setAudioPlaying(true);
     }
-  };
+  } catch {
+    setToast("Haiwezi kucheza muziki sasa.");
+    setTimeout(() => setToast(""), 3000);
+  }
+};
+  
 
   // ---------------- Tab navigation ----------------
   const goToTab = (tabId, page) => {
