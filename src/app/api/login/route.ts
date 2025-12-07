@@ -17,10 +17,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing credentials" }, { status: 400 });
     }
 
-    // 📌 FASTER: Fetch only needed fields
+    // 📌 Fetch only needed fields, no count option
     const { data: user, error } = await supabase
       .from("users")
-      .select("id, username, password_hash, role, sessions", { count: "off" })
+      .select("id, username, password_hash, role, sessions") // ✅ removed count: "off"
       .eq("username", username)
       .single();
 
@@ -28,26 +28,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // 📌 FASTER bcrypt (bcryptjs is already fast)
+    // 📌 Verify password
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
       return NextResponse.json({ error: "Wrong password" }, { status: 401 });
     }
 
-    // 📌 Light sessionId
+    // 📌 Generate a lightweight session ID
     const sessionId = randomUUID();
 
-    // 📌 Smaller & faster JWT
+    // 📌 Sign a compact JWT
     const token = jwt.sign(
       { uid: user.id, sid: sessionId },
       process.env.JWT_SECRET!,
       { expiresIn: "30m" }
     );
 
-    // 📌 Very fast sessions update (no heavy queries)
-    const updatedSessions = (user.sessions || []);
+    // 📌 Update user's sessions (keep last 10)
+    const updatedSessions = Array.isArray(user.sessions) ? [...user.sessions] : [];
     updatedSessions.push(sessionId);
-
     if (updatedSessions.length > 10) updatedSessions.shift();
 
     await supabase
@@ -55,7 +54,7 @@ export async function POST(req: Request) {
       .update({ sessions: updatedSessions })
       .eq("id", user.id);
 
-    // 📌 Send token as cookie + JSON
+    // 📌 Send token as secure cookie + JSON response
     const response = NextResponse.json({
       success: true,
       username: user.username,
@@ -63,12 +62,11 @@ export async function POST(req: Request) {
       token,
     });
 
-    // ⚡ FAST & SECURE COOKIE
     response.cookies.set("auth_token", token, {
       httpOnly: true,
       secure: true,
       sameSite: "strict",
-      maxAge: 60 * 30,
+      maxAge: 60 * 30, // 30 minutes
     });
 
     return response;
@@ -76,4 +74,4 @@ export async function POST(req: Request) {
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
-      }
+}
