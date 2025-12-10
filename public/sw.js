@@ -51,8 +51,21 @@ function broadcastStatus(message) {
   });
 }
 
-// --- FETCH HANDLER (Offline Fallback + Cache) ---
+// --- FETCH HANDLER (Offline Fallback + Cache + API fix) ---
 self.addEventListener("fetch", (event) => {
+  const url = new URL(event.request.url);
+
+  // API requests (with cookies)
+  if (url.pathname.startsWith("/api/")) {
+    event.respondWith(
+      fetch(event.request, { credentials: "include" })
+        .then((response) => response)
+        .catch(() => caches.match(OFFLINE_URL))
+    );
+    return;
+  }
+
+  // Page navigation requests
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request)
@@ -73,6 +86,7 @@ self.addEventListener("fetch", (event) => {
         })
     );
   } else {
+    // Static assets
     event.respondWith(
       caches.match(event.request).then((res) => {
         if (res) return res;
@@ -83,7 +97,7 @@ self.addEventListener("fetch", (event) => {
             );
             return response;
           })
-          .catch(() => caches.match(OFFLINE_URL))
+          .catch(() => caches.match(OFFLINE_URL));
       })
     );
   }
@@ -108,3 +122,4 @@ self.addEventListener("notificationclick", (event) => {
     clients.openWindow(event.notification.data)
   );
 });
+                       
