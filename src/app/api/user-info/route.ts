@@ -1,5 +1,6 @@
 // app/api/user-info/route.ts
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers"; // ✅ Import cookies helper
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -8,9 +9,10 @@ const supabase = createClient(
 );
 
 export async function GET(req: Request) {
-  // Chukua username na role kutoka cookies zilizowekwa login
-  const username = req.cookies.get("auth_user")?.value;
-  const role = req.cookies.get("auth_role")?.value;
+  // Use Next.js cookies helper
+  const cookieStore = cookies();
+  const username = cookieStore.get("auth_user")?.value;
+  const role = cookieStore.get("auth_role")?.value;
 
   if (!username || !role) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -26,7 +28,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  // Map ya allowedTabs kulingana na role
   const roleTabsMap: Record<string, string[]> = {
     admin: ["admin", "usher", "pastor", "media", "finance"],
     usher: ["usher"],
