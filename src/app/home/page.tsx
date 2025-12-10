@@ -27,22 +27,23 @@ export default function Dashboard() {
 
   const router = useRouter();
 
-  // ---------------- SIMPLE: Fetch user ----------------
+  // ---------------- Fetch user info ----------------
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch("/api/user-info", { cache: "no-store" });
+        const res = await fetch("/api/user-info", {
+          cache: "no-store",
+          credentials: "include", // tumia cookies zilizowekwa login
+        });
         if (!res.ok) return router.replace("/login");
 
         const data = await res.json();
 
-        setRole(data.role);
-        setFullName(data.full_name);
-        setBranch(data.branch);
-        setProfileUrl(data.profile_url);
-        setLastLogin(
-          data.last_login ? new Date(data.last_login).toLocaleString() : ""
-        );
+        setRole(data.role || "");
+        setFullName(data.full_name || "");
+        setBranch(data.branch || "");
+        setProfileUrl(data.profile_url || "");
+        setLastLogin(data.last_login ? new Date(data.last_login).toLocaleString() : "");
         setAllowedTabs(data.allowedTabs || []);
         setLoading(false);
       } catch {
@@ -53,9 +54,9 @@ export default function Dashboard() {
     load();
   }, [router]);
 
-  // ---------------- SIMPLE: Logout ----------------
+  // ---------------- Logout ----------------
   const handleLogout = async () => {
-    await fetch("/api/logout", { method: "POST" });
+    await fetch("/api/logout", { method: "POST", credentials: "include" });
     router.replace("/login");
   };
 
@@ -67,8 +68,12 @@ export default function Dashboard() {
       audioRef.current.pause();
       setAudioPlaying(false);
     } else {
-      await audioRef.current.play();
-      setAudioPlaying(true);
+      try {
+        await audioRef.current.play();
+        setAudioPlaying(true);
+      } catch (err) {
+        console.warn("Audio play blocked", err);
+      }
     }
   };
 
