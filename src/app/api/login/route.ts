@@ -1,3 +1,4 @@
+// app/api/login/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
@@ -18,45 +19,45 @@ export async function POST(req: Request) {
     .single();
 
   if (error || !user) {
-    return NextResponse.json({ error: "Username haipo" }, { status: 401 });
+    return NextResponse.json({ error: "Username haipo au password sio sahihi" }, { status: 401 });
   }
 
   const valid = await bcrypt.compare(password, user.password_hash);
 
   if (!valid) {
-    return NextResponse.json(
-      { error: "Password sio sahihi" },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Username au password sio sahihi" }, { status: 401 });
   }
 
   // --- set cookies ---
   const response = NextResponse.json({ success: true });
 
+  // ⚠️ Hii inafanya cookies ziwe secure kwenye production na zisizotumika localhost
+  const isProd = process.env.NODE_ENV === "production";
+
   response.cookies.set("auth_user", user.username, {
     httpOnly: true,
-    secure: true,
+    secure: isProd,
     sameSite: "strict",
     path: "/",
   });
 
   response.cookies.set("auth_role", user.role, {
     httpOnly: true,
-    secure: true,
+    secure: isProd,
     sameSite: "strict",
     path: "/",
   });
 
   response.cookies.set("auth_name", user.full_name, {
     httpOnly: true,
-    secure: true,
+    secure: isProd,
     sameSite: "strict",
     path: "/",
   });
 
   response.cookies.set("auth_phone", user.phone, {
     httpOnly: true,
-    secure: true,
+    secure: isProd,
     sameSite: "strict",
     path: "/",
   });
