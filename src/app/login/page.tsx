@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import "./login.css";
@@ -18,6 +19,12 @@ export default function LoginPage() {
     const username = form.username.value.trim();
     const password = form.password.value.trim();
 
+    if (!username || !password) {
+      setLoginMessage("❌ Tafadhali jaza taarifa zote");
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/login", {
         method: "POST",
@@ -29,17 +36,17 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (!res.ok || data.error) {
-        setLoginMessage(`❌ ${data.error || "Login failed"}`);
+        setLoginMessage(`❌ ${data.error || "Login imeshindikana"}`);
         setLoading(false);
         return;
       }
 
-      // COOKIE IMESHASETWA BY API — NO LOCALSTORAGE
       setLoginMessage("✅ Inakuelekeza...");
-      router.replace("/home"); // FASTER than push()
+      setTimeout(() => router.replace("/home"), 500);
 
-    } catch (err: any) {
-      setLoginMessage("❌ Hitilafu ya mtandao: " + err.message);
+    } catch {
+      setLoginMessage("❌ Hitilafu ya mtandao. Jaribu tena.");
+      setLoading(false);
     }
   };
 
@@ -49,7 +56,13 @@ export default function LoginPage() {
         <h2>Karibu 👋</h2>
 
         <label>Username</label>
-        <input type="text" name="username" placeholder="Weka username" required />
+        <input
+          type="text"
+          name="username"
+          placeholder="Weka username"
+          autoComplete="username"
+          required
+        />
 
         <label>Password</label>
         <div className="password-wrapper">
@@ -57,14 +70,20 @@ export default function LoginPage() {
             type={showPassword ? "text" : "password"}
             name="password"
             placeholder="Weka password"
+            autoComplete="current-password"
             required
           />
-          <span onClick={() => setShowPassword(!showPassword)}>
+
+          <span
+            className="pw-toggle"
+            onClick={() => setShowPassword(!showPassword)}
+            style={{ cursor: "pointer" }}
+          >
             {showPassword ? "🙈" : "👁️"}
           </span>
         </div>
 
-        <button disabled={loading}>
+        <button type="submit" disabled={loading}>
           {loading ? "⏳ Inapakia..." : "🚪 Ingia"}
         </button>
       </form>
