@@ -31,36 +31,20 @@ export async function POST(req: Request) {
   // --- set cookies ---
   const response = NextResponse.json({ success: true });
 
-  // ⚠️ Hii inafanya cookies ziwe secure kwenye production na zisizotumika localhost
   const isProd = process.env.NODE_ENV === "production";
 
-  response.cookies.set("auth_user", user.username, {
+  // Use lax for localhost, none+secure for production
+  const cookieOptions = {
     httpOnly: true,
-    secure: isProd,
-    sameSite: "strict",
+    secure: isProd, // must be true in production (HTTPS)
+    sameSite: isProd ? "none" : "lax",
     path: "/",
-  });
+  };
 
-  response.cookies.set("auth_role", user.role, {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: "strict",
-    path: "/",
-  });
-
-  response.cookies.set("auth_name", user.full_name, {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: "strict",
-    path: "/",
-  });
-
-  response.cookies.set("auth_phone", user.phone, {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: "strict",
-    path: "/",
-  });
+  response.cookies.set("auth_user", user.username, cookieOptions);
+  response.cookies.set("auth_role", user.role, cookieOptions);
+  response.cookies.set("auth_name", user.full_name, cookieOptions);
+  response.cookies.set("auth_phone", user.phone, cookieOptions);
 
   return response;
 }
