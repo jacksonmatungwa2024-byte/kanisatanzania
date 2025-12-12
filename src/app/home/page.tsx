@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import ProtectedLayout from "@/app/components/ProtectedLayout";
 import "./Dashboard.css";
 
@@ -12,16 +13,11 @@ const roleLabels: Record<string, string> = {
   finance: "Fedha",
 };
 
-// Helper to read cookies in client-side JS
-function getCookie(name: string) {
-  const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
-  return match ? decodeURIComponent(match[2]) : null;
-}
-
 export default function Dashboard() {
+  const params = useSearchParams();
   const [role, setRole] = useState("");
   const [fullName, setFullName] = useState("");
-  const [branch, setBranch] = useState(""); // optional if you want to add branch later
+  const [branch, setBranch] = useState("");
   const [profileUrl, setProfileUrl] = useState("");
   const [lastLogin, setLastLogin] = useState("");
   const [allowedTabs, setAllowedTabs] = useState<string[]>([]);
@@ -29,12 +25,11 @@ export default function Dashboard() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Load user info directly from cookies
   useEffect(() => {
-    const username = getCookie("auth_user");
-    const role = getCookie("auth_role");
-    const fullName = getCookie("auth_name");
-    const phone = getCookie("auth_phone");
+    const username = params.get("username");
+    const role = params.get("role");
+    const fullName = params.get("name");
+    const phone = params.get("phone");
 
     if (!username || !role) {
       window.location.href = "/login";
@@ -43,12 +38,10 @@ export default function Dashboard() {
 
     setRole(role);
     setFullName(fullName || "");
-    // You can set branch/profileUrl/lastLogin as constants or leave empty
-    setBranch("Main Branch"); // example constant
-    setProfileUrl("/default-profile.png"); // example constant
+    setBranch("Main Branch"); // constant example
+    setProfileUrl("/default-profile.png"); // constant example
     setLastLogin(new Date().toLocaleString());
 
-    // Allowed tabs based on role
     const roleTabsMap: Record<string, string[]> = {
       admin: ["admin", "usher", "pastor", "media", "finance"],
       usher: ["usher"],
@@ -57,18 +50,12 @@ export default function Dashboard() {
       finance: ["finance"],
     };
     setAllowedTabs(roleTabsMap[role] || []);
-  }, []);
+  }, [params]);
 
-  // Logout clears cookies
-  const handleLogout = async () => {
-    document.cookie = "auth_user=; Max-Age=0; path=/";
-    document.cookie = "auth_role=; Max-Age=0; path=/";
-    document.cookie = "auth_name=; Max-Age=0; path=/";
-    document.cookie = "auth_phone=; Max-Age=0; path=/";
+  const handleLogout = () => {
     window.location.href = "/login";
   };
 
-  // Audio toggle
   const toggleAudio = async () => {
     if (!audioRef.current) return;
     if (audioPlaying) {
@@ -134,4 +121,4 @@ export default function Dashboard() {
       </div>
     </ProtectedLayout>
   );
-}
+              }
