@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
-import { Suspense } from "react";
+import React, { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import ProtectedLayout from "@/app/components/ProtectedLayout";
 import "./Dashboard.css";
@@ -14,7 +13,7 @@ const roleLabels: Record<string, string> = {
   finance: "Fedha",
 };
 
-export default function Dashboard() {
+function Dashboard() {
   const params = useSearchParams();
   const [role, setRole] = useState("");
   const [fullName, setFullName] = useState("");
@@ -39,8 +38,8 @@ export default function Dashboard() {
 
     setRole(role);
     setFullName(fullName || "");
-    setBranch("Main Branch"); // constant example
-    setProfileUrl("/default-profile.png"); // constant example
+    setBranch("Main Branch");
+    setProfileUrl("/default-profile.png");
     setLastLogin(new Date().toLocaleString());
 
     const roleTabsMap: Record<string, string[]> = {
@@ -122,4 +121,12 @@ export default function Dashboard() {
       </div>
     </ProtectedLayout>
   );
-              }
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div>Loading dashboard...</div>}>
+      <Dashboard />
+    </Suspense>
+  );
+}
