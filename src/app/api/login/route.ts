@@ -33,8 +33,13 @@ export async function POST(req: Request) {
 
   const isProd = process.env.NODE_ENV === "production";
 
-  // Use lax for localhost, none+secure for production
-  const cookieOptions = {
+  // Explicitly type sameSite as union
+  const cookieOptions: {
+    httpOnly: boolean;
+    secure: boolean;
+    sameSite: "strict" | "lax" | "none";
+    path: string;
+  } = {
     httpOnly: true,
     secure: isProd, // must be true in production (HTTPS)
     sameSite: isProd ? "none" : "lax",
