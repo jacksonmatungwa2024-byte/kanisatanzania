@@ -19,37 +19,28 @@ export async function POST(req: Request) {
     .single();
 
   if (error || !user) {
-    return NextResponse.json({ error: "Username haipo au password sio sahihi" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Username haipo au password sio sahihi" },
+      { status: 401 }
+    );
   }
 
   const valid = await bcrypt.compare(password, user.password_hash);
-
   if (!valid) {
-    return NextResponse.json({ error: "Username au password sio sahihi" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Username au password sio sahihi" },
+      { status: 401 }
+    );
   }
 
-  // --- set cookies ---
-  const response = NextResponse.json({ success: true });
-
-  const isProd = process.env.NODE_ENV === "production";
-
-  // Explicitly type sameSite as union
-  const cookieOptions: {
-    httpOnly: boolean;
-    secure: boolean;
-    sameSite: "strict" | "lax" | "none";
-    path: string;
-  } = {
-    httpOnly: true,
-    secure: isProd, // must be true in production (HTTPS)
-    sameSite: isProd ? "none" : "lax",
-    path: "/",
-  };
-
-  response.cookies.set("auth_user", user.username, cookieOptions);
-  response.cookies.set("auth_role", user.role, cookieOptions);
-  response.cookies.set("auth_name", user.full_name, cookieOptions);
-  response.cookies.set("auth_phone", user.phone, cookieOptions);
-
-  return response;
+  // --- return user info directly, no cookies ---
+  return NextResponse.json({
+    success: true,
+    user: {
+      username: user.username,
+      fullName: user.full_name,
+      role: user.role,
+      phone: user.phone,
+    },
+  });
 }
