@@ -1,4 +1,4 @@
-const CACHE_NAME = "lumina-cache-v2";
+const CACHE_NAME = "lumina-cache-v3";
 const OFFLINE_URL = "/offline.html";
 
 // --- INSTALL ---
@@ -7,16 +7,21 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) =>
       cache.addAll([
-        "/",
-        OFFLINE_URL,
+        "/",                     // Home
+        OFFLINE_URL,             // Offline fallback
         "/manifest.json",
+
+        // MEDIA
         "/aerial.mp4",
         "/theme.mp3",
         "/intro-tone.mp3",
-        "/icons/icon-192.png",
-        "/icons/icon-256.png",
-        "/icons/icon-384.png",
-        "/icons/icon-512.png"
+
+        // MATCH MANIFEST.JSON ICONS (IMPORTANT!)
+        "/icons/lumina-192.png",
+        "/icons/lumina-256.png",
+        "/icons/lumina-512.png",
+        "/icons/lumina-maskable.png",
+        "/icons/lumina-monochrome.png"
       ])
     )
   );
@@ -25,13 +30,13 @@ self.addEventListener("install", (event) => {
 
 // --- ACTIVATE ---
 self.addEventListener("activate", (event) => {
-  console.log("🚀 [Lumina SW] Activated and ready to serve!");
+  console.log("🚀 [Lumina SW] Activated!");
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log("🗑️ [Lumina SW] Removing old cache:", key);
+            console.log("🗑️ [SW] Deleting old cache:", key);
             return caches.delete(key);
           }
         })
@@ -41,7 +46,7 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// --- NETWORK STATUS BROADCAST ---
+// --- NETWORK STATUS ---
 let wasOnline = true;
 function broadcastStatus(message) {
   self.clients.matchAll().then((clients) => {
@@ -51,56 +56,57 @@ function broadcastStatus(message) {
   });
 }
 
-// --- FETCH HANDLER (Offline Fallback + Cache + API fix) ---
+// --- FETCH HANDLER ---
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // API requests (with cookies)
+  // Handle API requests
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(
       fetch(event.request, { credentials: "include" })
-        .then((response) => response)
+        .then((res) => res)
         .catch(() => caches.match(OFFLINE_URL))
     );
     return;
   }
 
-  // Page navigation requests
+  // Page navigation
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request)
-        .then((response) => {
+        .then((res) => {
           if (!wasOnline) {
             wasOnline = true;
             broadcastStatus("🤗 Umerudi online!");
           }
-          return response;
+          return res;
         })
         .catch(() => {
           if (wasOnline) {
             wasOnline = false;
-            broadcastStatus("😞 Umepoteza internet, uko offline.");
+            broadcastStatus("😞 Uko offline.");
           }
-          console.warn("⚠️ [Lumina SW] Offline, serving fallback page.");
           return caches.match(OFFLINE_URL);
         })
     );
-  } else {
-    // Static assets
-    event.respondWith(
-      caches.match(event.request).then((res) => {
-        if (res) return res;
-        return fetch(event.request)
-          .then((response) => {
-            caches.open(CACHE_NAME).then((cache) =>
-              cache.put(event.request, response.clone())
-            );
-            return response;
-          })
-          .catch(() => caches.match(OFFLINE_URL));
-      })
-    );
+    return;
   }
+
+  // Static assets
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+
+      return fetch(event.request)
+        .then((res) => {
+          caches.open(CACHE_NAME).then((cache) =>
+            cache.put(event.request, res.clone())
+          );
+          return res;
+        })
+        .catch(() => caches.match(OFFLINE_URL));
+    })
+  );
 });
 
 // --- PUSH NOTIFICATIONS ---
@@ -109,17 +115,14 @@ self.addEventListener("push", (event) => {
   const title = data.title || "Lumina Update";
   const options = {
     body: data.body || "Una taarifa mpya!",
-    icon: "/icons/icon-192.png",
-    badge: "/icons/icon-192.png",
-    data: data.url || "/home"
+    icon: "/icons/lumina-192.png",
+    badge: "/icons/lumina-192.png",
+    data: data.url || "/home",
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  event.waitUntil(
-    clients.openWindow(event.notification.data)
-  );
+  event.waitUntil(clients.openWindow(event.notification.data));
 });
-                       
