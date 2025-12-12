@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
 import ProtectedLayout from "@/app/components/ProtectedLayout";
 import "./Dashboard.css";
 
@@ -13,57 +12,65 @@ const roleLabels: Record<string, string> = {
   finance: "Fedha",
 };
 
+// Helper to read cookies in client-side JS
+function getCookie(name: string) {
+  const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+  return match ? decodeURIComponent(match[2]) : null;
+}
+
 export default function Dashboard() {
   const [role, setRole] = useState("");
   const [fullName, setFullName] = useState("");
-  const [branch, setBranch] = useState("");
+  const [branch, setBranch] = useState(""); // optional if you want to add branch later
   const [profileUrl, setProfileUrl] = useState("");
   const [lastLogin, setLastLogin] = useState("");
   const [allowedTabs, setAllowedTabs] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-
   const [audioPlaying, setAudioPlaying] = useState(false);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const router = useRouter();
-
-  // ---------------- Fetch user info ----------------
+  // Load user info directly from cookies
   useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await fetch("/api/user-info", {
-          cache: "no-store",
-          credentials: "include", // tumia cookies zilizowekwa login
-        });
-        if (!res.ok) return router.replace("/login");
+    const username = getCookie("auth_user");
+    const role = getCookie("auth_role");
+    const fullName = getCookie("auth_name");
+    const phone = getCookie("auth_phone");
 
-        const data = await res.json();
+    if (!username || !role) {
+      window.location.href = "/login";
+      return;
+    }
 
-        setRole(data.role || "");
-        setFullName(data.full_name || "");
-        setBranch(data.branch || "");
-        setProfileUrl(data.profile_url || "");
-        setLastLogin(data.last_login ? new Date(data.last_login).toLocaleString() : "");
-        setAllowedTabs(data.allowedTabs || []);
-        setLoading(false);
-      } catch {
-        router.replace("/login");
-      }
+    setRole(role);
+    setFullName(fullName || "");
+    // You can set branch/profileUrl/lastLogin as constants or leave empty
+    setBranch("Main Branch"); // example constant
+    setProfileUrl("/default-profile.png"); // example constant
+    setLastLogin(new Date().toLocaleString());
+
+    // Allowed tabs based on role
+    const roleTabsMap: Record<string, string[]> = {
+      admin: ["admin", "usher", "pastor", "media", "finance"],
+      usher: ["usher"],
+      pastor: ["pastor"],
+      media: ["media"],
+      finance: ["finance"],
     };
+    setAllowedTabs(roleTabsMap[role] || []);
+  }, []);
 
-    load();
-  }, [router]);
-
-  // ---------------- Logout ----------------
+  // Logout clears cookies
   const handleLogout = async () => {
-    await fetch("/api/logout", { method: "POST", credentials: "include" });
-    router.replace("/login");
+    document.cookie = "auth_user=; Max-Age=0; path=/";
+    document.cookie = "auth_role=; Max-Age=0; path=/";
+    document.cookie = "auth_name=; Max-Age=0; path=/";
+    document.cookie = "auth_phone=; Max-Age=0; path=/";
+    window.location.href = "/login";
   };
 
-  // ---------------- Audio toggle ----------------
+  // Audio toggle
   const toggleAudio = async () => {
     if (!audioRef.current) return;
-
     if (audioPlaying) {
       audioRef.current.pause();
       setAudioPlaying(false);
@@ -77,25 +84,13 @@ export default function Dashboard() {
     }
   };
 
-  // ---------------- Go to tab ----------------
   const goToTab = (page: string) => {
     window.location.href = page;
   };
 
-  if (loading) {
-    return (
-      <ProtectedLayout>
-        <div className="dashboard-container">
-          <div className="loading">Loading profile…</div>
-        </div>
-      </ProtectedLayout>
-    );
-  }
-
   return (
     <ProtectedLayout>
       <div className="dashboard-container">
-
         <div className="theme-verse">“Nuru yako itangaze gizani.” — Isaya 60:1</div>
 
         <h2>
