@@ -41,9 +41,20 @@ export default function LoginPage() {
         return;
       }
 
+      // ✅ Login success
       setLoginMessage("✅ Inakuelekeza...");
-      setTimeout(() => router.replace("/home"), 500);
 
+      // Hapa unaweza kupitisha user info kwa njia rahisi (mfano query string)
+      // kwa kuwa hutaki cookies/localStorage
+      const { username: u, fullName, role, phone } = data.user;
+
+      setTimeout(() => {
+        router.replace(
+          `/home?username=${encodeURIComponent(u)}&name=${encodeURIComponent(
+            fullName
+          )}&role=${encodeURIComponent(role)}&phone=${encodeURIComponent(phone)}`
+        );
+      }, 500);
     } catch {
       setLoginMessage("❌ Hitilafu ya mtandao. Jaribu tena.");
       setLoading(false);
