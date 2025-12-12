@@ -3,13 +3,11 @@
   "name": "Lumina Outreach System",
   "short_name": "Lumina",
   "description": "Mfumo wa mwanga, mawasiliano, na uratibu — Abel Memorial Programmers.",
-
-  "start_url": "/home",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "fullscreen"],
   "orientation": "portrait",
-
   "theme_color": "#FFD700",
   "background_color": "#000000",
   "lang": "sw",
