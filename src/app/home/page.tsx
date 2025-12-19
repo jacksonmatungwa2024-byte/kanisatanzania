@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, useRef, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import React, { useEffect, useState, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import ProtectedLayout from "@/app/components/ProtectedLayout";
 import "./Dashboard.css";
 
@@ -15,6 +15,7 @@ const roleLabels: Record<string, string> = {
 
 function Dashboard() {
   const params = useSearchParams();
+  const router = useRouter();
   const [role, setRole] = useState("");
   const [fullName, setFullName] = useState("");
   const [branch, setBranch] = useState("");
@@ -29,10 +30,9 @@ function Dashboard() {
     const username = params.get("username");
     const role = params.get("role");
     const fullName = params.get("name");
-    const phone = params.get("phone");
 
     if (!username || !role) {
-      window.location.href = "/login";
+      router.replace("/login");
       return;
     }
 
@@ -50,10 +50,10 @@ function Dashboard() {
       finance: ["finance"],
     };
     setAllowedTabs(roleTabsMap[role] || []);
-  }, [params]);
+  }, [params, router]);
 
   const handleLogout = () => {
-    window.location.href = "/login";
+    router.replace("/login");
   };
 
   const toggleAudio = async () => {
@@ -72,7 +72,7 @@ function Dashboard() {
   };
 
   const goToTab = (page: string) => {
-    window.location.href = page;
+    router.push(page);
   };
 
   return (
@@ -123,10 +123,4 @@ function Dashboard() {
   );
 }
 
-export default function DashboardPage() {
-  return (
-    <Suspense fallback={<div>Loading dashboard...</div>}>
-      <Dashboard />
-    </Suspense>
-  );
-}
+export default Dashboard;
