@@ -43,18 +43,15 @@ export default function LoginPage() {
 
       // ✅ Login success
       setLoginMessage("✅ Inakuelekeza...");
+      setLoading(false);
 
-      // Hapa unaweza kupitisha user info kwa njia rahisi (mfano query string)
-      // kwa kuwa hutaki cookies/localStorage
       const { username: u, fullName, role, phone } = data.user;
 
-      setTimeout(() => {
-        router.replace(
-          `/home?username=${encodeURIComponent(u)}&name=${encodeURIComponent(
-            fullName
-          )}&role=${encodeURIComponent(role)}&phone=${encodeURIComponent(phone)}`
-        );
-      }, 500);
+      router.replace(
+        `/home?username=${encodeURIComponent(u)}&name=${encodeURIComponent(
+          fullName
+        )}&role=${encodeURIComponent(role)}&phone=${encodeURIComponent(phone)}`
+      );
     } catch {
       setLoginMessage("❌ Hitilafu ya mtandao. Jaribu tena.");
       setLoading(false);
