@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useChromeCheck } from "@/utils/useChromeCheck"; // 🔒 Hybrid Chrome-only check
+import { useChromeCheck } from "@/utils/useChromeCheck"; 
 import styles from "./welcome.module.css";
 
 export default function WelcomePage() {
@@ -14,28 +14,24 @@ export default function WelcomePage() {
 
   const introRef = useRef<HTMLAudioElement>(null);
 
-  // 🔒 Client-side Chrome check
+  // ✅ Client-side Chrome check
   useChromeCheck();
 
-  // 🎵 Preloader sound + timer
+  // 🎵 Loader (shorter delay, optional audio)
   useEffect(() => {
+    // optional: let user trigger audio instead of autoplay
     if (introRef.current) {
       introRef.current.volume = 0.7;
-      introRef.current.play().catch((err) =>
-        console.warn("Audio autoplay blocked:", err)
-      );
     }
-    const loadTimer = setTimeout(() => setLoading(false), 3000);
+
+    // shorter loader: 1s instead of 3s
+    const loadTimer = setTimeout(() => {
+      setLoading(false);
+      setShowOptions(true); // show buttons immediately
+    }, 1000);
+
     return () => clearTimeout(loadTimer);
   }, []);
-
-  // 🎛️ Show buttons after animation
-  useEffect(() => {
-    if (!loading) {
-      const timer = setTimeout(() => setShowOptions(true), 1200);
-      return () => clearTimeout(timer);
-    }
-  }, [loading]);
 
   // 🔌 Register Service Worker (PWA)
   useEffect(() => {
@@ -76,7 +72,8 @@ export default function WelcomePage() {
         <div className={styles.lightRays}></div>
         <div className={styles.glowCross}></div>
         <p className={styles.loaderText}>Lumina Church Management System</p>
-        <audio ref={introRef} loop autoPlay>
+        {/* audio only loads, no autoplay */}
+        <audio ref={introRef} loop>
           <source src="/intro-tone.mp3" type="audio/mp3" />
         </audio>
       </div>
