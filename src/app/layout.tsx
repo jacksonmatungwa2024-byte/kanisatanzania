@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Roboto_Mono } from "next/font/google"; // ✅ Fonts supported
+import { Inter, Roboto_Mono } from "next/font/google";
 import "./globals.css";
 
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -30,7 +30,14 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#FFD700" />
         <meta name="background-color" content="#000000" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+
+        {/* iOS PWA support */}
+        <link rel="apple-touch-icon" href="/icons/lumina-192.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+        {/* Favicon */}
+        <link rel="icon" href="/icons/lumina-192.png" type="image/png" />
       </head>
       <body className={`${inter.variable} ${robotoMono.variable} antialiased`}>
         {children}
