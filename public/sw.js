@@ -3,18 +3,13 @@ const OFFLINE_URL = "/offline.html";
 
 // --- INSTALL ---
 self.addEventListener("install", (event) => {
-  console.log("✨ [Lumina SW] Installing and caching assets...");
+  console.log("✨ [Lumina SW] Installing and caching core assets...");
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
-      const assets = [
+      const coreAssets = [
         "/",                     // Home
         OFFLINE_URL,             // Offline fallback
         "/manifest.json",
-
-        // MEDIA
-        "/aerial.mp4",
-        "/theme.mp3",
-        "/intro-tone.mp3",
 
         // MATCH MANIFEST.JSON ICONS (IMPORTANT!)
         "/icons/lumina-192.png",
@@ -24,7 +19,7 @@ self.addEventListener("install", (event) => {
         "/icons/lumina-monochrome.png"
       ];
       // safer: don't fail if one asset is missing
-      await Promise.allSettled(assets.map((asset) => cache.add(asset)));
+      await Promise.allSettled(coreAssets.map((asset) => cache.add(asset)));
     })
   );
   self.skipWaiting();
@@ -109,16 +104,20 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets
+  // Static assets + runtime caching for media
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
 
       return fetch(event.request)
         .then((res) => {
-          caches.open(CACHE_NAME).then((cache) =>
-            cache.put(event.request, res.clone())
-          );
+          // Only cache small/static assets, skip large media
+          const isMedia = url.pathname.endsWith(".mp4") || url.pathname.endsWith(".mp3");
+          if (!isMedia) {
+            caches.open(CACHE_NAME).then((cache) =>
+              cache.put(event.request, res.clone())
+            );
+          }
           return res;
         })
         .catch(() => caches.match(OFFLINE_URL));
