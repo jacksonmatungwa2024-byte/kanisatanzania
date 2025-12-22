@@ -5,8 +5,8 @@ const OFFLINE_URL = "/offline.html";
 self.addEventListener("install", (event) => {
   console.log("✨ [Lumina SW] Installing and caching assets...");
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) =>
-      cache.addAll([
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const assets = [
         "/",                     // Home
         OFFLINE_URL,             // Offline fallback
         "/manifest.json",
@@ -22,8 +22,10 @@ self.addEventListener("install", (event) => {
         "/icons/lumina-512.png",
         "/icons/lumina-maskable.png",
         "/icons/lumina-monochrome.png"
-      ])
-    )
+      ];
+      // safer: don't fail if one asset is missing
+      await Promise.allSettled(assets.map((asset) => cache.add(asset)));
+    })
   );
   self.skipWaiting();
 });
@@ -44,6 +46,21 @@ self.addEventListener("activate", (event) => {
     )
   );
   self.clients.claim();
+
+  // Notify clients that SW is ready
+  self.clients.matchAll().then((clients) => {
+    clients.forEach((client) => {
+      client.postMessage({ type: "SW_READY" });
+    });
+  });
+});
+
+// --- MESSAGE HANDLER (for Refresh App button) ---
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    console.log("⏭️ [SW] Skip waiting triggered");
+    self.skipWaiting();
+  }
 });
 
 // --- NETWORK STATUS ---
