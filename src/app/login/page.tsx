@@ -28,7 +28,6 @@ export default function LoginPage() {
     try {
       const res = await fetch("/api/login", {
         method: "POST",
-        cache: "no-store",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
@@ -41,17 +40,12 @@ export default function LoginPage() {
         return;
       }
 
-      // ✅ Login success
+      // ✅ Login success (cookie already set by API)
       setLoginMessage("✅ Inakuelekeza...");
       setLoading(false);
 
-      const { username: u, fullName, role, phone } = data.user;
-
-      router.replace(
-        `/home?username=${encodeURIComponent(u)}&name=${encodeURIComponent(
-          fullName
-        )}&role=${encodeURIComponent(role)}&phone=${encodeURIComponent(phone)}`
-      );
+      // 🔐 NO query params anymore
+      router.replace("/home");
     } catch {
       setLoginMessage("❌ Hitilafu ya mtandao. Jaribu tena.");
       setLoading(false);
