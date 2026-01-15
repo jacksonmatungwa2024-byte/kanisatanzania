@@ -1,4 +1,3 @@
-// app/api/login/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
@@ -11,7 +10,14 @@ const supabase = createClient(
 export async function POST(req: Request) {
   const { username, password } = await req.json();
 
-  // Fetch user from DB
+  if (!username || !password) {
+    return NextResponse.json(
+      { error: "Taarifa hazijakamilika" },
+      { status: 400 }
+    );
+  }
+
+  // Fetch user
   const { data: user, error } = await supabase
     .from("users")
     .select("username, full_name, role, phone, password_hash")
@@ -20,7 +26,7 @@ export async function POST(req: Request) {
 
   if (error || !user) {
     return NextResponse.json(
-      { error: "Username haipo au password sio sahihi" },
+      { error: "Username au password sio sahihi" },
       { status: 401 }
     );
   }
@@ -33,8 +39,8 @@ export async function POST(req: Request) {
     );
   }
 
-  // --- return user info directly, no cookies ---
-  return NextResponse.json({
+  // ✅ Create response
+  const response = NextResponse.json({
     success: true,
     user: {
       username: user.username,
@@ -43,4 +49,21 @@ export async function POST(req: Request) {
       phone: user.phone,
     },
   });
+
+  // ✅ Set secure HTTP-only cookie
+  response.cookies.set({
+    name: "auth",
+    value: JSON.stringify({
+      username: user.username,
+      role: user.role,
+      name: user.full_name,
+    }),
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24, // 1 day
+  });
+
+  return response;
 }
