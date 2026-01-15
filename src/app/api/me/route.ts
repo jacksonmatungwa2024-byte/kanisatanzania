@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
@@ -9,26 +10,30 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Token missing" }, { status: 401 });
-    }
+    // 🔐 Read token from HTTP-only cookie
+    const token = cookies().get("auth")?.value;
 
-    const token = authHeader.split(" ")[1];
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     let decoded: any;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET!);
     } catch {
-      return NextResponse.json({ error: "Token invalid" }, { status: 401 });
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
-    if (!decoded.sessionId) {
-      return NextResponse.json({ error: "Invalid token structure" }, { status: 401 });
+    if (!decoded.id || !decoded.sessionId) {
+      return NextResponse.json(
+        { error: "Invalid token structure" },
+        { status: 401 }
+      );
     }
 
+    // 🔎 Fetch user
     const { data: user, error } = await supabase
       .from("users")
       .select(`
@@ -50,6 +55,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // 🧠 Validate active session
     const userSessions = Array.isArray(user.sessions) ? user.sessions : [];
 
     if (!userSessions.includes(decoded.sessionId)) {
@@ -59,14 +65,15 @@ export async function GET(req: Request) {
       );
     }
 
+    // 🔐 Role → allowed tabs
     const allPanels = ["admin", "usher", "pastor", "media", "finance"];
 
     const allTabIds = [
       "tabManager","reactivation","users","registration","data","matangazo",
       "storage","settings","profile","home","usajili","mafunzo","reports","messages",
       "picha","muumini","mahadhurio","wokovu","ushuhuda","dashboard","bajeti",
-      "summary","approval","approved","rejected","media","usage","finance","michango",
-      "reports_finance"
+      "summary","approval","approved","rejected","media","usage","finance",
+      "michango","reports_finance"
     ];
 
     let allowedTabs: string[] = [];
@@ -77,7 +84,8 @@ export async function GET(req: Request) {
       allowedTabs = [user.role, ...(user.metadata?.allowed_tabs || [])];
     }
 
-        return NextResponse.json({
+    // ✅ Return safe user payload
+    return NextResponse.json({
       id: user.id,
       username: user.username,
       email: user.email,
@@ -87,7 +95,6 @@ export async function GET(req: Request) {
       profile_url: user.profile_url,
       last_login: user.last_login,
       metadata: user.metadata || {},
-      sessions: user.sessions || [],
       allowed_tabs: allowedTabs,
     });
   } catch (err: any) {
@@ -96,4 +103,4 @@ export async function GET(req: Request) {
       { status: 500 }
     );
   }
-          }
+}
