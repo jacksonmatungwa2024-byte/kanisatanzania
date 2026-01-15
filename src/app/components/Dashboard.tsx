@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import ProtectedLayout from "@/app/components/ProtectedLayout";
 import "./Dashboard.css";
 
@@ -14,8 +14,8 @@ const roleLabels: Record<string, string> = {
 };
 
 export default function Dashboard() {
-  const params = useSearchParams();
   const router = useRouter();
+
   const [role, setRole] = useState("");
   const [fullName, setFullName] = useState("");
   const [branch, setBranch] = useState("");
@@ -26,38 +26,48 @@ export default function Dashboard() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // 🔐 Load user from secure cookie via API
   useEffect(() => {
-    const username = params.get("username");
-    const role = params.get("role");
-    const fullName = params.get("name");
+    const loadUser = async () => {
+      try {
+        const res = await fetch("/api/me", { cache: "no-store" });
 
-    if (!username || !role) {
-      router.replace("/login");
-      return;
-    }
+        if (!res.ok) throw new Error("Unauthorized");
 
-    setRole(role);
-    setFullName(fullName || "");
-    setBranch("Main Branch");
-    setProfileUrl("/default-profile.png");
-    setLastLogin(new Date().toLocaleString());
+        const user = await res.json();
 
-    const roleTabsMap: Record<string, string[]> = {
-      admin: ["admin", "usher", "pastor", "media", "finance"],
-      usher: ["usher"],
-      pastor: ["pastor"],
-      media: ["media"],
-      finance: ["finance"],
+        setRole(user.role);
+        setFullName(user.name || "");
+        setBranch("Main Branch");
+        setProfileUrl("/default-profile.png");
+        setLastLogin(new Date().toLocaleString());
+
+        const roleTabsMap: Record<string, string[]> = {
+          admin: ["admin", "usher", "pastor", "media", "finance"],
+          usher: ["usher"],
+          pastor: ["pastor"],
+          media: ["media"],
+          finance: ["finance"],
+        };
+
+        setAllowedTabs(roleTabsMap[user.role] || []);
+      } catch {
+        router.replace("/login");
+      }
     };
-    setAllowedTabs(roleTabsMap[role] || []);
-  }, [params, router]);
 
-  const handleLogout = () => {
+    loadUser();
+  }, [router]);
+
+  // 🚪 Logout
+  const handleLogout = async () => {
+    await fetch("/api/logout", { method: "POST" });
     router.replace("/login");
   };
 
   const toggleAudio = async () => {
     if (!audioRef.current) return;
+
     if (audioPlaying) {
       audioRef.current.pause();
       setAudioPlaying(false);
@@ -78,15 +88,21 @@ export default function Dashboard() {
   return (
     <ProtectedLayout>
       <div className="dashboard-container">
-        <div className="theme-verse">“Nuru yako itangaze gizani.” — Isaya 60:1</div>
+        <div className="theme-verse">
+          “Nuru yako itangaze gizani.” — Isaya 60:1
+        </div>
 
         <h2>
           Karibu {roleLabels[role]} {fullName}
         </h2>
 
         {branch && <div className="info-block">📍 Tawi: {branch}</div>}
-        {lastLogin && <div className="info-block">🕒 Mwisho kuingia: {lastLogin}</div>}
-        {profileUrl && <img src={profileUrl} alt="Profile" className="profile-img" />}
+        {lastLogin && (
+          <div className="info-block">🕒 Mwisho kuingia: {lastLogin}</div>
+        )}
+        {profileUrl && (
+          <img src={profileUrl} alt="Profile" className="profile-img" />
+        )}
 
         <div className="controls-row">
           <button onClick={toggleAudio}>
@@ -121,4 +137,4 @@ export default function Dashboard() {
       </div>
     </ProtectedLayout>
   );
-      }
+}
